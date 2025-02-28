@@ -17,6 +17,7 @@ struct InsertCommentedInlineAsmBeforeRetInst : public PassInfoMixin<InsertCommen
 			ReturnInst *RI = cast<ReturnInst>(TerminatorInst);
 
 			Type *Int32Ty = Type::getInt32Ty(F.getContext());
+			/*
 			if (RI->getReturnValue() != nullptr && RI->getReturnValue()->getType() == Int32Ty) {
 				FunctionType *IAFT = FunctionType::get(Int32Ty, {Int32Ty}, false);
 				InlineAsm *IA = InlineAsm::get(IAFT, "#removethiscomment ICIABRI $0", "=r,r", true);
@@ -29,10 +30,16 @@ struct InsertCommentedInlineAsmBeforeRetInst : public PassInfoMixin<InsertCommen
 				CallInst *CI = CallInst::Create(FunctionCallee(IAFT, IA), "inlineasmtestinst", TerminatorInst);
 				CI->setTailCall(true);
 			}
+			*/
+			// Insert Commented Inline Assembly Before Return Instruction
+			FunctionType *IAFT = FunctionType::get(Int32Ty, false);
+			InlineAsm *IA = InlineAsm::get(IAFT, "#removethiscomment iciabri", "=r", true);
+			CallInst *CI = CallInst::Create(FunctionCallee(IAFT, IA), "inlineasmtestinst", TerminatorInst);
+			CI->setTailCall(true);
 
 			outs() << "[ICIABRI] Insert ICIABRI instruction to function \"" << F.getName() << "\"\n";
-			// CI->print(outs());
-			// outs() << '\n';
+			CI->print(outs());
+			outs() << '\n';
 		}
 
 		return PreservedAnalyses::all();
