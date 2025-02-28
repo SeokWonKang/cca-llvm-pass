@@ -3,8 +3,8 @@
 #-----------------------
 # Library
 add_library( PIMCCALLVMInstrumentation MODULE 
-	# InsertCommenttedInlineBeforeRet.cpp 
-	CCAMulAdd.cpp )
+	InsertCommenttedInlineBeforeRet.cpp )
+	# CCAMulAdd.cpp )
 
 #------------------------------
 # Install
