@@ -26,6 +26,8 @@ struct CCAMulAddPass : public PassInfoMixin<CCAMulAddPass> {
 	PreservedAnalyses run(Function &F, FunctionAnalysisManager &) {
 		std::vector<struct MulAddPattern> MulAddPatternVec;
 
+		if (F.getName() != "gemv") return PreservedAnalyses::all();
+
 		// Find MulAdd Patterns
 		for (Function::iterator FuncIter = F.begin(); FuncIter != F.end(); ++FuncIter) {
 			for (BasicBlock::iterator BBIter = FuncIter->begin(); BBIter != FuncIter->end(); ++BBIter) {
