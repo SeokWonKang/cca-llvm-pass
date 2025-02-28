@@ -26,8 +26,6 @@ struct CCAMulAddPass : public PassInfoMixin<CCAMulAddPass> {
 	PreservedAnalyses run(Function &F, FunctionAnalysisManager &) {
 		std::vector<struct MulAddPattern> MulAddPatternVec;
 
-		if (F.getName() != "gemv") return PreservedAnalyses::all();
-
 		// Find MulAdd Patterns
 		for (Function::iterator FuncIter = F.begin(); FuncIter != F.end(); ++FuncIter) {
 			for (BasicBlock::iterator BBIter = FuncIter->begin(); BBIter != FuncIter->end(); ++BBIter) {
@@ -72,8 +70,8 @@ struct CCAMulAddPass : public PassInfoMixin<CCAMulAddPass> {
 		InlineAsm *Move26InstIA = InlineAsm::get(MoveInstFT, "#removethiscomment move r26, $0", "r", true);
 		FunctionType *CCAInstFT = FunctionType::get(VoidTy, false);
 		InlineAsm *CCAInstIA = InlineAsm::get(CCAInstFT, "#removethiscomment cca 0", "", true);
-		FunctionType *StoreInstFT = FunctionType::get(Int32Ty, false);
-		InlineAsm *Store30IA = InlineAsm::get(StoreInstFT, "#removethiscomment sw $0, 0, r30", "=r", true);
+		FunctionType *Move30InstFT = FunctionType::get(Int32Ty, false);
+		InlineAsm *Move30InstIA = InlineAsm::get(Move30InstFT, "#removethiscomment move $0, r30", "=r", true);
 
 		for (auto PatternIter = MulAddPatternVec.begin(); PatternIter != MulAddPatternVec.end(); ++PatternIter) {
 			BinaryOperator *AddInst = PatternIter->AddInst;
@@ -90,8 +88,8 @@ struct CCAMulAddPass : public PassInfoMixin<CCAMulAddPass> {
 			CallInst *CCACallInst = CallInst::Create(FunctionCallee(CCAInstFT, CCAInstIA));
 			CCACallInst->setTailCall(true);
 			// Store Instruction
-			CallInst *StoreCallInst = CallInst::Create(FunctionCallee(StoreInstFT, Store30IA), {}, "store30inst");
-			StoreCallInst->setTailCall(true);
+			CallInst *Move30CallInst = CallInst::Create(FunctionCallee(Move30InstFT, Move30InstIA), {}, "move30inst");
+			Move30CallInst->setTailCall(true);
 			// Verbose
 			outs() << "[CCA:MulAdd] Found MulAdd Pattern in Function \"" << F.getName() << "\"\n";
 			PRINT_INSTRUCTION(" - source.mul: ", MulInst);
@@ -100,15 +98,15 @@ struct CCAMulAddPass : public PassInfoMixin<CCAMulAddPass> {
 			PRINT_INSTRUCTION(" - output.move25: ", Move25CallInst);
 			PRINT_INSTRUCTION(" - output.move26: ", Move26CallInst);
 			PRINT_INSTRUCTION(" - output.cca: ", CCACallInst);
-			PRINT_INSTRUCTION(" - output.store30: ", StoreCallInst);
+			PRINT_INSTRUCTION(" - output.move30: ", Move30CallInst);
 			// Insert Instructions
-			StoreCallInst->insertAfter(AddInst);
-			CCACallInst->insertBefore(StoreCallInst);
+			Move30CallInst->insertAfter(AddInst);
+			CCACallInst->insertBefore(Move30CallInst);
 			Move26CallInst->insertBefore(CCACallInst);
 			Move25CallInst->insertBefore(Move26CallInst);
 			Move24CallInst->insertBefore(Move25CallInst);
 			// Replace & Erase Instructions
-			AddInst->replaceAllUsesWith(StoreCallInst);
+			AddInst->replaceAllUsesWith(Move30CallInst);
 			AddInst->eraseFromParent();
 			MulInst->eraseFromParent();
 		}
