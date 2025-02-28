@@ -65,9 +65,9 @@ struct CCAMulAddPass : public PassInfoMixin<CCAMulAddPass> {
 		Type *VoidTy = Type::getVoidTy(F.getContext());
 		Type *Int32Ty = Type::getInt32Ty(F.getContext());
 		FunctionType *MoveInstFT = FunctionType::get(VoidTy, {Int32Ty}, false);
-		InlineAsm *Move24InstIA = InlineAsm::get(MoveInstFT, "#removethiscomment move, r24, $0", "r", true);
-		InlineAsm *Move25InstIA = InlineAsm::get(MoveInstFT, "#removethiscomment move, r25, $0", "r", true);
-		InlineAsm *Move26InstIA = InlineAsm::get(MoveInstFT, "#removethiscomment move, r26, $0", "r", true);
+		InlineAsm *Move24InstIA = InlineAsm::get(MoveInstFT, "#removethiscomment move r24, $0", "r", true);
+		InlineAsm *Move25InstIA = InlineAsm::get(MoveInstFT, "#removethiscomment move r25, $0", "r", true);
+		InlineAsm *Move26InstIA = InlineAsm::get(MoveInstFT, "#removethiscomment move r26, $0", "r", true);
 		FunctionType *CCAInstFT = FunctionType::get(VoidTy, false);
 		InlineAsm *CCAInstIA = InlineAsm::get(CCAInstFT, "#removethiscomment cca, 0", "", true);
 		FunctionType *StoreInstFT = FunctionType::get(Int32Ty, false);
