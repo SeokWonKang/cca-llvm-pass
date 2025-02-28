@@ -1,0 +1,4 @@
+# uPIMulator
+$ docker build -t bongjoonhyun/compiler-base -f docker/compiler-base.dockerfile .
+$ docker build -t bongjoonhyun/compiler --no-cache -f docker/compiler..dockerfile .
+and then add 'source /root/bin-wrapper.sh' before build (make) benchmark in src/compiler/compiler.py to apply pim-cca-pass
