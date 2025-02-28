@@ -69,9 +69,9 @@ struct CCAMulAddPass : public PassInfoMixin<CCAMulAddPass> {
 		InlineAsm *Move25InstIA = InlineAsm::get(MoveInstFT, "#removethiscomment move r25, $0", "r", true);
 		InlineAsm *Move26InstIA = InlineAsm::get(MoveInstFT, "#removethiscomment move r26, $0", "r", true);
 		FunctionType *CCAInstFT = FunctionType::get(VoidTy, false);
-		InlineAsm *CCAInstIA = InlineAsm::get(CCAInstFT, "#removethiscomment cca, 0", "", true);
+		InlineAsm *CCAInstIA = InlineAsm::get(CCAInstFT, "#removethiscomment cca 0", "", true);
 		FunctionType *StoreInstFT = FunctionType::get(Int32Ty, false);
-		InlineAsm *Store30IA = InlineAsm::get(StoreInstFT, "#removethiscomment sw, $0, 0, r30", "=r", true);
+		InlineAsm *Store30IA = InlineAsm::get(StoreInstFT, "#removethiscomment sw $0, 0, r30", "=r", true);
 
 		for (auto PatternIter = MulAddPatternVec.begin(); PatternIter != MulAddPatternVec.end(); ++PatternIter) {
 			BinaryOperator *AddInst = PatternIter->AddInst;
