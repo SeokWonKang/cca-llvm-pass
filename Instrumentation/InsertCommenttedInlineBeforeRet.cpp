@@ -30,7 +30,7 @@ struct InsertCommentedInlineAsmBeforeRetInst : public PassInfoMixin<InsertCommen
 				CI->setTailCall(true);
 			}
 
-			outs() << "ICIABRI: Function \"" << F.getName() << "\"\n";
+			outs() << "[ICIABRI] Insert ICIABRI instruction to function \"" << F.getName() << "\"\n";
 			// CI->print(outs());
 			// outs() << '\n';
 		}
