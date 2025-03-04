@@ -87,9 +87,9 @@ struct CCAMulAddPass : public PassInfoMixin<CCAMulAddPass> {
 			BinaryOperator *MulInst = PatternIter->MulInst;
 			Value *AddOperand = PatternIter->AddOperand;
 			// CCA Prepare (Implemented as Move instruction)
-			CallInst *Move24CallInst = CallInst::Create(FunctionCallee(MoveInstFT, Move24InstIA), {AddOperand});
-			CallInst *Move25CallInst = CallInst::Create(FunctionCallee(MoveInstFT, Move25InstIA), {MulInst->getOperand(0)});
-			CallInst *Move26CallInst = CallInst::Create(FunctionCallee(MoveInstFT, Move26InstIA), {MulInst->getOperand(1)});
+			CallInst *Move24CallInst = CallInst::Create(FunctionCallee(MoveInstFT, Move24InstIA), {MulInst->getOperand(0)});
+			CallInst *Move25CallInst = CallInst::Create(FunctionCallee(MoveInstFT, Move25InstIA), {MulInst->getOperand(1)});
+			CallInst *Move26CallInst = CallInst::Create(FunctionCallee(MoveInstFT, Move26InstIA), {AddOperand});
 			Move24CallInst->setTailCall(true);
 			Move25CallInst->setTailCall(true);
 			Move26CallInst->setTailCall(true);
