@@ -45,12 +45,14 @@ struct CCAMulAddPass : public PassInfoMixin<CCAMulAddPass> {
 					}
 					if (MulInst == nullptr) continue;
 					// Check All the Operands be from Load or PHINode
+					/*
 					if (!(isa<LoadInst>(MulInst->getOperand(0)) || isa<PHINode>(MulInst->getOperand(0))) ||
 						!(isa<LoadInst>(MulInst->getOperand(1)) || isa<PHINode>(MulInst->getOperand(1))) ||
 						!(isa<LoadInst>(AddOperand) || isa<PHINode>(AddOperand))) {
 						outs() << "[CCA:MulAdd] Found MulAdd Pattern but Operands are not Load or PHINode in Function \"" << F.getName() << "\"\n";
 						continue;
 					}
+					*/
 
 					// outs() << "[CCA:MulAdd] Found Mul-Add Pattern in Function \"" << F.getName() << "\"\n";
 					// outs() << "  - mul: "; MulInst->print(outs()); outs() << '\n';
