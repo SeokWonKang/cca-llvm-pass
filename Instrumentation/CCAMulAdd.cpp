@@ -30,6 +30,7 @@ struct CCAMulAddPass : public PassInfoMixin<CCAMulAddPass> {
 		for (Function::iterator FuncIter = F.begin(); FuncIter != F.end(); ++FuncIter) {
 			for (BasicBlock::iterator BBIter = FuncIter->begin(); BBIter != FuncIter->end(); ++BBIter) {
 				if (isa<BinaryOperator>(BBIter) && cast<BinaryOperator>(BBIter)->getOpcode() == Instruction::Add) {
+					// Find Mul-Add Patterns
 					BinaryOperator *AddInst = cast<BinaryOperator>(BBIter);
 					BinaryOperator *MulInst = nullptr;
 					Value *AddOperand = nullptr;
@@ -43,6 +44,14 @@ struct CCAMulAddPass : public PassInfoMixin<CCAMulAddPass> {
 						AddOperand = AddInst->getOperand(0);
 					}
 					if (MulInst == nullptr) continue;
+					// Check All the Operands be from Load or PHINode
+					if (!(isa<LoadInst>(MulInst->getOperand(0)) || isa<PHINode>(MulInst->getOperand(0))) ||
+						!(isa<LoadInst>(MulInst->getOperand(1)) || isa<PHINode>(MulInst->getOperand(1))) ||
+						!(isa<LoadInst>(AddOperand) || isa<PHINode>(AddOperand))) {
+						outs() << "[CCA:MulAdd] Found MulAdd Pattern but Operands are not Load or PHINode in Function \"" << F.getName() << "\"\n";
+						continue;
+					}
+
 					// outs() << "[CCA:MulAdd] Found Mul-Add Pattern in Function \"" << F.getName() << "\"\n";
 					// outs() << "  - mul: "; MulInst->print(outs()); outs() << '\n';
 					// outs() << "  - add: "; AddInst->print(outs()); outs() << '\n';
