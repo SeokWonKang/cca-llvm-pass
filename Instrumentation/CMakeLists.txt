@@ -4,7 +4,11 @@
 # Library
 add_library( PIMCCALLVMInstrumentation MODULE 
 	# InsertCommenttedInlineBeforeRet.cpp 
-	CCAMulAdd.cpp )
+	CCAMulAdd.cpp
+	CCAPassPlugin.cpp )
+target_include_directories( PIMCCALLVMInstrumentation PUBLIC
+	$<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}>
+	$<INSTALL_INTERFACE:include> )
 
 #------------------------------
 # Install
