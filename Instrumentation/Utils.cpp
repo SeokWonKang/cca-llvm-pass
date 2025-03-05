@@ -1,6 +1,6 @@
 #include "Instrumentation/Utils.hpp"
 #include "llvm/IR/InstrTypes.h"
-#include "llvm/Support/ModRef.h"
+#include "llvm/IR/Instructions.h"
 
 namespace llvm {
 namespace cca {
@@ -31,6 +31,21 @@ bool CheckOtherUseExist(Value *V, User *U) {
 			OtherUseExist = true;
 			break;
 		}
+	}
+	return OtherUseExist;
+}
+
+// Check Other Use Exist except Specific User and Store Instruction
+bool CheckOtherUseExistWithoutStore(Value *V, User *U, std::vector<StoreInst *> &SVec) {
+	bool OtherUseExist = false;
+	for (auto UserIter : V->users()) {
+		if (UserIter == U) continue;
+		if (isa<StoreInst>(UserIter)) {
+			SVec.push_back(cast<StoreInst>(UserIter));
+			continue;
+		}
+		OtherUseExist = true;
+		break;
 	}
 	return OtherUseExist;
 }

@@ -7,13 +7,14 @@ using namespace llvm;
 // Pass Registration
 PassPluginLibraryInfo getPassPluginInfo() {
 	const auto callback = [](PassBuilder &PB) {
-		PB.registerPipelineEarlySimplificationEPCallback([&](ModulePassManager &MPM, auto) {
+		PB.registerOptimizerLastEPCallback([&](ModulePassManager &MPM, auto) {
+			MPM.addPass(createModuleToFunctionPassAdaptor(cca::CCAMulAddDoublePass()));
 			MPM.addPass(createModuleToFunctionPassAdaptor(cca::CCAMulAddPass()));
 			return true;
 		});
 	};
 
-	return {LLVM_PLUGIN_API_VERSION, "cca-muladd-pass", "0.0.1", callback};
+	return {LLVM_PLUGIN_API_VERSION, "cca-passes", "0.0.1", callback};
 };
 
 extern "C" LLVM_ATTRIBUTE_WEAK PassPluginLibraryInfo llvmGetPassPluginInfo() { return getPassPluginInfo(); }

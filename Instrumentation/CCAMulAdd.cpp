@@ -20,7 +20,7 @@ namespace cca {
 struct MulAddPattern {
 	BinaryOperator *AddInst;
 	BinaryOperator *MulInst;
-	Value *AddOperand;
+	Value *Bias;
 };
 
 // Run
@@ -34,10 +34,9 @@ PreservedAnalyses CCAMulAddPass::run(Function &F, FunctionAnalysisManager &) {
 				// Find Mul-Add Patterns
 				BinaryOperator *AddInst = cast<BinaryOperator>(BBIter);
 				BinaryOperator *MulInst = nullptr;
-				Value *AddOperand = nullptr;
-				MulInst = GetBinaryOperatorInOperandsInBinaryOperator(AddInst, Instruction::Mul, AddOperand);
-				if (MulInst == nullptr) continue;
-				if (CheckOtherUseExist(MulInst, AddInst)) continue;
+				Value *Bias = nullptr;
+				MulInst = GetBinaryOperatorInOperandsInBinaryOperator(AddInst, Instruction::Mul, Bias);
+				if (MulInst == nullptr || CheckOtherUseExist(MulInst, AddInst)) continue;
 
 				// Check All the Operands be from Load or PHINode
 				/*
@@ -53,7 +52,7 @@ PreservedAnalyses CCAMulAddPass::run(Function &F, FunctionAnalysisManager &) {
 				// outs() << "  - mul: "; MulInst->print(outs()); outs() << '\n';
 				// outs() << "  - add: "; AddInst->print(outs()); outs() << '\n';
 
-				MulAddPatternVec.push_back({AddInst, MulInst, AddOperand});
+				MulAddPatternVec.push_back({AddInst, MulInst, Bias});
 			}
 		}
 	}
@@ -72,11 +71,11 @@ PreservedAnalyses CCAMulAddPass::run(Function &F, FunctionAnalysisManager &) {
 	for (auto PatternIter = MulAddPatternVec.begin(); PatternIter != MulAddPatternVec.end(); ++PatternIter) {
 		BinaryOperator *AddInst = PatternIter->AddInst;
 		BinaryOperator *MulInst = PatternIter->MulInst;
-		Value *AddOperand = PatternIter->AddOperand;
+		Value *Bias = PatternIter->Bias;
 		// CCA Prepare (Implemented as Move instruction)
 		CallInst *Move24CallInst = CallInst::Create(FunctionCallee(MoveInstFT, Move24InstIA), {MulInst->getOperand(0)});
 		CallInst *Move25CallInst = CallInst::Create(FunctionCallee(MoveInstFT, Move25InstIA), {MulInst->getOperand(1)});
-		CallInst *Move26CallInst = CallInst::Create(FunctionCallee(MoveInstFT, Move26InstIA), {AddOperand});
+		CallInst *Move26CallInst = CallInst::Create(FunctionCallee(MoveInstFT, Move26InstIA), {Bias});
 		Move24CallInst->setTailCall(true);
 		Move25CallInst->setTailCall(true);
 		Move26CallInst->setTailCall(true);
