@@ -1,5 +1,5 @@
-#ifndef INSTRUMENTATION_CCA_PASSES_HPP_
-#define INSTRUMENTATION_CCA_PASSES_HPP_
+#ifndef PIMCCALLVMPASS_INSTRUMENTATION_CCA_PASSES_HPP_
+#define PIMCCALLVMPASS_INSTRUMENTATION_CCA_PASSES_HPP_
 
 #include "llvm/IR/PassManager.h"
 
@@ -25,4 +25,4 @@ struct CCAMulSubMulDivPass : public PassInfoMixin<CCAMulSubMulDivPass> {
 } // namespace cca
 }; // namespace llvm
 
-#endif // INSTRUMENTATION_CCA_PASSES_HPP_
+#endif // PIMCCALLVMPASS_INSTRUMENTATION_CCA_PASSES_HPP_

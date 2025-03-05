@@ -1,4 +1,5 @@
 #include "Instrumentation/CCAPasses.hpp"
+#include "Instrumentation/Utils.hpp"
 #include "llvm/IR/InlineAsm.h"
 #include "llvm/IR/InstrTypes.h"
 #include "llvm/IR/Instructions.h"
@@ -34,15 +35,10 @@ PreservedAnalyses CCAMulAddPass::run(Function &F, FunctionAnalysisManager &) {
 				BinaryOperator *AddInst = cast<BinaryOperator>(BBIter);
 				BinaryOperator *MulInst = nullptr;
 				Value *AddOperand = nullptr;
-				if (isa<BinaryOperator>(AddInst->getOperand(0)) && cast<BinaryOperator>(AddInst->getOperand(0))->getOpcode() == Instruction::Mul) {
-					MulInst = cast<BinaryOperator>(AddInst->getOperand(0));
-					AddOperand = AddInst->getOperand(1);
-				} else if (isa<BinaryOperator>(AddInst->getOperand(1)) &&
-						   cast<BinaryOperator>(AddInst->getOperand(1))->getOpcode() == Instruction::Mul) {
-					MulInst = cast<BinaryOperator>(AddInst->getOperand(1));
-					AddOperand = AddInst->getOperand(0);
-				}
+				MulInst = GetBinaryOperatorInOperandsInBinaryOperator(AddInst, Instruction::Mul, AddOperand);
 				if (MulInst == nullptr) continue;
+				if (CheckOtherUseExist(MulInst, AddInst)) continue;
+
 				// Check All the Operands be from Load or PHINode
 				/*
 				if (!(isa<LoadInst>(MulInst->getOperand(0)) || isa<PHINode>(MulInst->getOperand(0))) ||
@@ -57,16 +53,6 @@ PreservedAnalyses CCAMulAddPass::run(Function &F, FunctionAnalysisManager &) {
 				// outs() << "  - mul: "; MulInst->print(outs()); outs() << '\n';
 				// outs() << "  - add: "; AddInst->print(outs()); outs() << '\n';
 
-				bool OtherUseExist = false;
-				for (auto MulInstUseIter : MulInst->users()) {
-					if (MulInstUseIter != AddInst) {
-						// outs() << "other use found! : ";
-						// MulInstUseIter->print(outs()); outs() << '\n';
-						OtherUseExist = true;
-						break;
-					}
-				}
-				if (OtherUseExist) continue;
 				MulAddPatternVec.push_back({AddInst, MulInst, AddOperand});
 			}
 		}

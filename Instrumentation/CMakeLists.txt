@@ -4,6 +4,7 @@
 # Library
 add_library( PIMCCALLVMInstrumentation MODULE 
 	# InsertCommenttedInlineBeforeRet.cpp 
+	Utils.cpp
 	CCAMulAdd.cpp
 	CCAPassPlugin.cpp )
 target_include_directories( PIMCCALLVMInstrumentation PUBLIC
