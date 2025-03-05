@@ -1,7 +1,7 @@
 cmake_minimum_required( VERSION 3.15 )
 
 # Project CCA-LLVM-PASS
-project( "CCA-LLVM-PASS" LANGUAGES CXX VERSION 0.1 )
+project( "CCA-LLVM-PASS" LANGUAGES C CXX VERSION 0.1 )
 
 # Dependencies
 
@@ -24,7 +24,7 @@ set(CMAKE_C_COMPILER clang)
 set(CMAKE_CXX_COMPILER clang++)
 set(CMAKE_CXX_FLAGS_RELEASE "-O3")
 set(CMAKE_CXX_FLAGS_DEBUG "-g -O0")
-add_compile_options(-W -Wall -fPIC -fno-rtti)
+add_compile_options(-W -Wall -fPIC -fno-rtti -Wno-unused-parameter)
 
 # Passes
 add_subdirectory(Instrumentation)
