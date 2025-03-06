@@ -15,13 +15,11 @@ struct CCAMulAddDoublePass : public PassInfoMixin<CCAMulAddDoublePass> {
 	PreservedAnalyses run(Function &, FunctionAnalysisManager &);
 	static bool isRequired(void) { return true; }
 };
-/*
 // MulSubMulDiv
 struct CCAMulSubMulDivPass : public PassInfoMixin<CCAMulSubMulDivPass> {
 	PreservedAnalyses run(Function &, FunctionAnalysisManager &);
 	static bool isRequired(void) { return true; }
 };
-*/
 } // namespace cca
 }; // namespace llvm
 

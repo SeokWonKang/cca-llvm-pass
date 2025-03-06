@@ -7,6 +7,7 @@ add_library( PIMCCALLVMInstrumentation MODULE
 	Utils.cpp
 	CCAMulAdd.cpp
 	CCAMulAddDouble.cpp
+	CCAMulSubMulDiv.cpp
 	CCAPassPlugin.cpp )
 target_include_directories( PIMCCALLVMInstrumentation PUBLIC
 	$<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}>

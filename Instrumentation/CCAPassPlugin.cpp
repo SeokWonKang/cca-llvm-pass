@@ -8,6 +8,7 @@ using namespace llvm;
 PassPluginLibraryInfo getPassPluginInfo() {
 	const auto callback = [](PassBuilder &PB) {
 		PB.registerOptimizerLastEPCallback([&](ModulePassManager &MPM, auto) {
+			MPM.addPass(createModuleToFunctionPassAdaptor(cca::CCAMulSubMulDivPass()));
 			MPM.addPass(createModuleToFunctionPassAdaptor(cca::CCAMulAddDoublePass()));
 			MPM.addPass(createModuleToFunctionPassAdaptor(cca::CCAMulAddPass()));
 			return true;

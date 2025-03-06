@@ -7,6 +7,8 @@
 
 namespace llvm {
 namespace cca {
+// Check Binary Operator
+bool isaBO(Value *V, Instruction::BinaryOps Op);
 // Get Binary Operator in Operands
 User::op_iterator GetBinaryOperatorInOperands(User *U, Instruction::BinaryOps Op);
 // Get Binary Operator in Operands of Binary Operator
