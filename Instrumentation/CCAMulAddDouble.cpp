@@ -63,7 +63,7 @@ PreservedAnalyses CCAMulAddDoublePass::run(Function &F, FunctionAnalysisManager 
 						MulInst1 = cast<BinaryOperator>(MulInst1Value);
 					if (CheckOtherUseExist(MulInst1, NonLastAddInst)) continue;
 				}
-
+				// Push to Replace List
 				MulAddDoublePatternVec.push_back({MulInst0, MulInst1, Bias, LastAddInst, NonLastAddInst});
 			}
 		}
@@ -78,14 +78,16 @@ PreservedAnalyses CCAMulAddDoublePass::run(Function &F, FunctionAnalysisManager 
 	InlineAsm *Move27InstIA = InlineAsm::get(MoveInstFT, "#removethiscomment move r27, $0", "r", true);
 	InlineAsm *Move28InstIA = InlineAsm::get(MoveInstFT, "#removethiscomment move r28, $0", "r", true);
 	FunctionType *CCAInstFT = FunctionType::get(VoidTy, false);
-	InlineAsm *CCAInstIA = InlineAsm::get(CCAInstFT, "#removethiscomment cca 1", "", true);
+	InlineAsm *CCAInstIA = InlineAsm::get(CCAInstFT, "#removethiscomment cca 2", "", true);
 	FunctionType *Move30InstFT = FunctionType::get(Int32Ty, false);
 	InlineAsm *Move30InstIA = InlineAsm::get(Move30InstFT, "#removethiscomment move $0, r30", "=r", true);
 
 	for (auto PatternIter = MulAddDoublePatternVec.begin(); PatternIter != MulAddDoublePatternVec.end(); ++PatternIter) {
-		BinaryOperator *MulInst0 = PatternIter->MulInst0;
-		BinaryOperator *MulInst1 = PatternIter->MulInst1;
-		Value *Bias = PatternIter->Bias;
+		BinaryOperator *&MulInst0 = PatternIter->MulInst0;
+		BinaryOperator *&MulInst1 = PatternIter->MulInst1;
+		BinaryOperator *&LastAddInst = PatternIter->LastAddInst;
+		BinaryOperator *&NonLastAddInst = PatternIter->NonLastAddInst;
+		Value *&Bias = PatternIter->Bias;
 		// CCA Prepare (Implemented as Move instruction)
 		CallInst *Move24CallInst = CallInst::Create(FunctionCallee(MoveInstFT, Move24InstIA), {MulInst0->getOperand(0)});
 		CallInst *Move25CallInst = CallInst::Create(FunctionCallee(MoveInstFT, Move25InstIA), {MulInst0->getOperand(1)});
@@ -97,18 +99,18 @@ PreservedAnalyses CCAMulAddDoublePass::run(Function &F, FunctionAnalysisManager 
 		Move26CallInst->setTailCall(true);
 		Move27CallInst->setTailCall(true);
 		Move28CallInst->setTailCall(true);
-		// // CCA Instruction
+		// CCA Instruction
 		CallInst *CCACallInst = CallInst::Create(FunctionCallee(CCAInstFT, CCAInstIA));
 		CCACallInst->setTailCall(true);
 		// Store Instruction
 		CallInst *Move30CallInst = CallInst::Create(FunctionCallee(Move30InstFT, Move30InstIA), {}, "move30inst");
 		Move30CallInst->setTailCall(true);
 		// Verbose
-		outs() << "[CCA:MulAddDouble] Found MulAdd Pattern in Function \"" << F.getName() << "\"\n";
+		outs() << "[CCA:MulAddDouble] Found Pattern in Function \"" << F.getName() << "\"\n";
 		PRINT_INSTRUCTION(" - source.mul0: ", MulInst0);
 		PRINT_INSTRUCTION(" - source.mul1: ", MulInst1);
-		PRINT_INSTRUCTION(" - source.add0: ", PatternIter->NonLastAddInst);
-		PRINT_INSTRUCTION(" - source.add1: ", PatternIter->LastAddInst);
+		PRINT_INSTRUCTION(" - source.add0: ", NonLastAddInst);
+		PRINT_INSTRUCTION(" - source.add1: ", LastAddInst);
 		PRINT_INSTRUCTION(" - output.move24: ", Move24CallInst);
 		PRINT_INSTRUCTION(" - output.move25: ", Move25CallInst);
 		PRINT_INSTRUCTION(" - output.move26: ", Move26CallInst);
@@ -117,7 +119,7 @@ PreservedAnalyses CCAMulAddDoublePass::run(Function &F, FunctionAnalysisManager 
 		PRINT_INSTRUCTION(" - output.cca: ", CCACallInst);
 		PRINT_INSTRUCTION(" - output.move30: ", Move30CallInst);
 		// Insert Instructions
-		Move30CallInst->insertAfter(PatternIter->LastAddInst);
+		Move30CallInst->insertAfter(LastAddInst);
 		CCACallInst->insertBefore(Move30CallInst);
 		Move28CallInst->insertBefore(CCACallInst);
 		Move27CallInst->insertBefore(Move28CallInst);
@@ -125,13 +127,13 @@ PreservedAnalyses CCAMulAddDoublePass::run(Function &F, FunctionAnalysisManager 
 		Move25CallInst->insertBefore(Move26CallInst);
 		Move24CallInst->insertBefore(Move25CallInst);
 		// Replace & Erase Instructions
-		PatternIter->LastAddInst->replaceAllUsesWith(Move30CallInst);
-		PatternIter->LastAddInst->removeFromParent();
-		PatternIter->NonLastAddInst->removeFromParent();
-		MulInst0->removeFromParent();
-		MulInst1->removeFromParent();
+		LastAddInst->replaceAllUsesWith(Move30CallInst);
+		LastAddInst->eraseFromParent();
+		NonLastAddInst->eraseFromParent();
+		MulInst0->eraseFromParent();
+		MulInst1->eraseFromParent();
 	}
-	for (auto S : SVecToRemove) { S->removeFromParent(); }
+	for (auto S : SVecToRemove) { S->eraseFromParent(); }
 
 	return PreservedAnalyses::all();
 }

@@ -52,6 +52,7 @@ PreservedAnalyses CCAMulAddPass::run(Function &F, FunctionAnalysisManager &) {
 				// outs() << "  - mul: "; MulInst->print(outs()); outs() << '\n';
 				// outs() << "  - add: "; AddInst->print(outs()); outs() << '\n';
 
+				// Push to Replace List
 				MulAddPatternVec.push_back({AddInst, MulInst, Bias});
 			}
 		}
@@ -69,9 +70,9 @@ PreservedAnalyses CCAMulAddPass::run(Function &F, FunctionAnalysisManager &) {
 	InlineAsm *Move30InstIA = InlineAsm::get(Move30InstFT, "#removethiscomment move $0, r30", "=r", true);
 
 	for (auto PatternIter = MulAddPatternVec.begin(); PatternIter != MulAddPatternVec.end(); ++PatternIter) {
-		BinaryOperator *AddInst = PatternIter->AddInst;
-		BinaryOperator *MulInst = PatternIter->MulInst;
-		Value *Bias = PatternIter->Bias;
+		BinaryOperator *&AddInst = PatternIter->AddInst;
+		BinaryOperator *&MulInst = PatternIter->MulInst;
+		Value *&Bias = PatternIter->Bias;
 		// CCA Prepare (Implemented as Move instruction)
 		CallInst *Move24CallInst = CallInst::Create(FunctionCallee(MoveInstFT, Move24InstIA), {MulInst->getOperand(0)});
 		CallInst *Move25CallInst = CallInst::Create(FunctionCallee(MoveInstFT, Move25InstIA), {MulInst->getOperand(1)});
@@ -79,14 +80,14 @@ PreservedAnalyses CCAMulAddPass::run(Function &F, FunctionAnalysisManager &) {
 		Move24CallInst->setTailCall(true);
 		Move25CallInst->setTailCall(true);
 		Move26CallInst->setTailCall(true);
-		// // CCA Instruction
+		// CCA Instruction
 		CallInst *CCACallInst = CallInst::Create(FunctionCallee(CCAInstFT, CCAInstIA));
 		CCACallInst->setTailCall(true);
 		// Store Instruction
 		CallInst *Move30CallInst = CallInst::Create(FunctionCallee(Move30InstFT, Move30InstIA), {}, "move30inst");
 		Move30CallInst->setTailCall(true);
 		// Verbose
-		outs() << "[CCA:MulAdd] Found MulAdd Pattern in Function \"" << F.getName() << "\"\n";
+		outs() << "[CCA:MulAdd] Found Pattern in Function \"" << F.getName() << "\"\n";
 		PRINT_INSTRUCTION(" - source.mul: ", MulInst);
 		PRINT_INSTRUCTION(" - source.add: ", AddInst);
 		PRINT_INSTRUCTION(" - output.move24: ", Move24CallInst);
