@@ -5,7 +5,7 @@
 namespace llvm {
 namespace cca {
 // Check Binary Operator
-bool isaBO(Value *V, Instruction::BinaryOps Op) {
+bool isaBO(const Value *V, Instruction::BinaryOps Op) {
 	if (!isa<BinaryOperator>(V)) return false;
 	if (cast<BinaryOperator>(V)->getOpcode() != Op) return false;
 	return true;

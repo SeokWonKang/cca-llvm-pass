@@ -6,8 +6,10 @@ add_library( PIMCCALLVMInstrumentation MODULE
 	# InsertCommenttedInlineBeforeRet.cpp 
 	Utils.cpp
 	CCAMulAdd.cpp
-	CCAMulAddDouble.cpp
-	CCAMulSubMulDiv.cpp
+	# CCAMulAddDouble.cpp
+	# CCAMulSubMulDiv.cpp
+	CCAPatternGraph.cpp
+	CCAUniversal.cpp
 	CCAPassPlugin.cpp )
 target_include_directories( PIMCCALLVMInstrumentation PUBLIC
 	$<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}>
