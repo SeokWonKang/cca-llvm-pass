@@ -2,3 +2,4 @@
 .gitignore
 build
 compile_commands.json
+clang_format.sh

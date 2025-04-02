@@ -4,7 +4,13 @@ FROM bongjoonhyun/compiler-base:latest
 ENV CMAKE_PREFIX_PATH="/root/install/upmem-llvm"
 ENV PATH="$PATH:/root/install/upmem-llvm/bin"
 WORKDIR /root
+
+# From GitHub
 RUN git clone https://github.com/SeokWonKang/cca-llvm-pass.git
+# From Copy
+# COPY application/pim-cca-compiler/cca-llvm-pass /root/cca-llvm-pass
+# RUN rm -r /root/cca-llvm-pass/build
+
 RUN mkdir -p /root/cca-llvm-pass/build
 WORKDIR /root/cca-llvm-pass/build
 RUN cmake -DCMAKE_INSTALL_PREFIX=/root/install/cca-llvm-pass /root/cca-llvm-pass
