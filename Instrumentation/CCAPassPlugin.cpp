@@ -12,14 +12,14 @@ PassPluginLibraryInfo getPassPluginInfo() {
 			// MPM.addPass(createModuleToFunctionPassAdaptor(cca::CCAMulSubMulDivPass()));
 			// MPM.addPass(createModuleToFunctionPassAdaptor(cca::CCAMulAddDoublePass()));
 			// MPM.addPass(createModuleToFunctionPassAdaptor(cca::CCAMulAddPass()));
-			MPM.addPass(createModuleToFunctionPassAdaptor(cca::CCAUniversalPass("3: r30 = r24 * r25 - (r26 * r27) / r28")));
-			MPM.addPass(createModuleToFunctionPassAdaptor(cca::CCAUniversalPass("3: r30 = r24 * r25 - r26 * (r27 / r28)")));
-			MPM.addPass(createModuleToFunctionPassAdaptor(cca::CCAUniversalPass("2: r30 = (r24 * r25 + r26 * r27) + r28")));
-			MPM.addPass(createModuleToFunctionPassAdaptor(cca::CCAUniversalPass("2: r30 = r24 * r25 + (r26 * r27 + r28)")));
-			MPM.addPass(createModuleToFunctionPassAdaptor(cca::CCAUniversalPass("0: r30 = r24 * r25 + r26")));
+			// MPM.addPass(createModuleToFunctionPassAdaptor(cca::CCAUniversalPass("3: r30 = r24 * r25 - (r26 * r27) / r28")));
+			// MPM.addPass(createModuleToFunctionPassAdaptor(cca::CCAUniversalPass("3: r30 = r24 * r25 - r26 * (r27 / r28)")));
+			// MPM.addPass(createModuleToFunctionPassAdaptor(cca::CCAUniversalPass("2: r30 = (r24 * r25 + r26 * r27) + r28")));
+			// MPM.addPass(createModuleToFunctionPassAdaptor(cca::CCAUniversalPass("2: r30 = r24 * r25 + (r26 * r27 + r28)")));
+			// MPM.addPass(createModuleToFunctionPassAdaptor(cca::CCAUniversalPass("0: r30 = r24 * r25 + r26")));
+			MPM.addPass(createModuleToFunctionPassAdaptor(cca::CCAUniversalPass3("3: r30 = r24 + r25; r29 = r24 + r26; r28 = r24 + r27; r27 = r24 + r28"))); 
 			/*
-			MPM.addPass(createModuleToFunctionPassAdaptor(cca::CCAUniversalPass2("3: r27 = r24 + r25; r28 = r24 + r26; r29 = r24 + r27; r30 = r24 +
-			r28"))); MPM.addPass(createModuleToFunctionPassAdaptor(cca::CCAUniversalPass2("3: r27 = r24 + r25; r28 = r24 + r26; r29 = r24 + r27")));
+			MPM.addPass(createModuleToFunctionPassAdaptor(cca::CCAUniversalPass2("3: r27 = r24 + r25; r28 = r24 + r26; r29 = r24 + r27")));
 			MPM.addPass(createModuleToFunctionPassAdaptor(cca::CCAUniversalPass2("3: r27 = r24 + r25; r28 = r24 + r26")));
 			MPM.addPass(createModuleToFunctionPassAdaptor(cca::CCAUniversalPass2("3: r27 = r24 + r25; r28 = r26 + r27")));
 

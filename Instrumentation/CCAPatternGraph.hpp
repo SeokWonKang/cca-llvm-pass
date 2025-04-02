@@ -69,7 +69,7 @@ class CCAPatternGraphRegisterNode final : public CCAPatternGraphNode {
 typedef CCAPatternGraphNode CCAPatternGraph;
 
 //-------------------------------------
-// Class: CCA Pattern Graph
+// Class: CCA Pattern Graph 2
 //-------------------------------------
 class CCAPatternGraphNode2 {
   protected:

@@ -170,7 +170,10 @@ void CCAPattern2::build(unsigned int ccaid, const std::vector<std::pair<unsigned
 	}
 }
 
-// Pass Constructor
+//--------------------------------------------
+// CCA Universal Pass
+//--------------------------------------------
+// Constructor
 CCAUniversalPass::CCAUniversalPass(std::string patternStr) {
 	// Parse Input String
 	std::vector<std::string> tokenVec;
@@ -287,7 +290,10 @@ PreservedAnalyses CCAUniversalPass::run(Function &F, FunctionAnalysisManager &) 
 	return PreservedAnalyses::all();
 }
 
-// Pass Constructor
+//--------------------------------------------
+// CCA Universal Pass 2
+//--------------------------------------------
+// Constructor
 CCAUniversalPass2::CCAUniversalPass2(std::string patternStr) {
 	// Parse Input String
 	std::vector<std::string> tokenVec;
@@ -445,6 +451,242 @@ PreservedAnalyses CCAUniversalPass2::run(Function &F, FunctionAnalysisManager &)
 		}
 		// Update Iterators
 		terminated = !updateIter();
+	}
+
+	// Verbose
+	if (!PatternVec.empty()) {
+		raw_os_ostream lcout(std::cout);
+		lcout << "[PASS] Found Patterns in Function " << F.getName() << '\n';
+		lcout.flush();
+		for (auto &P : PatternVec) P->print(2, std::cout);
+		lcout << "  - removed: \n";
+		for (const auto &iter : RemovedInsts) {
+			lcout << std::string(4, ' ');
+			iter->print(lcout);
+			lcout << '\n';
+		}
+		lcout.flush();
+		lcout << "  - replaced: \n";
+		for (const auto &iter : ReplacedInsts) {
+			lcout << std::string(4, ' ');
+			iter->print(lcout);
+			lcout << '\n';
+		}
+		lcout.flush();
+	}
+
+	// Build CCA Instructions from Patterns
+	for (auto &P : PatternVec) P->build(ccaid_, oreginfo_, F.getContext());
+
+	// Remove Intermediate Instructions
+	for (auto &I : ReplacedInsts) I->eraseFromParent();
+	bool changed = true;
+	while (changed) {
+		changed = false;
+		std::vector<Instruction *> Removable;
+		for (auto &I : RemovedInsts) {
+			if (I->users().empty()) Removable.push_back(I);
+		}
+		for (auto &I : Removable) {
+			RemovedInsts.erase(I);
+			I->eraseFromParent();
+			changed = true;
+		}
+	}
+
+	if (!RemovedInsts.empty()) {
+		raw_os_ostream lcout(std::cout);
+		lcout << "[PASS] Cannot Resolve All the Intermediate Instructions\n";
+		lcout.flush();
+		for (const auto &I : RemovedInsts) {
+			I->print(lcout);
+			lcout << '\n';
+			for (const auto &V : I->users()) {
+				lcout << "  - ";
+				V->print(lcout);
+				lcout << '\n';
+			}
+		}
+	}
+
+	return PreservedAnalyses::all();
+}
+
+//--------------------------------------------
+// CCA Universal Pass 3
+//--------------------------------------------
+// Constructor
+CCAUniversalPass3::CCAUniversalPass3(std::string patternStr) {
+	// Parse Input String
+	std::vector<std::string> tokenVec;
+	std::stringstream ss(patternStr);
+	std::string line;
+	while (getline(ss, line)) {
+		size_t prev = 0, pos;
+		while ((pos = line.find_first_of(" =+*/-:();", prev)) != std::string::npos) {
+			if (pos > prev) tokenVec.push_back(line.substr(prev, pos - prev));
+			if (line[pos] != ' ') tokenVec.push_back(std::string(1, line[pos]));
+			prev = pos + 1;
+		}
+		if (prev < line.length()) tokenVec.push_back(line.substr(prev, std::string::npos));
+	}
+
+	// Check Rule Number
+	// [0] : CCA ID
+	// [1] : colon (':')
+	if (tokenVec.size() < 2 || tokenVec.at(1) != ":") std::cerr << "undefined pattern string : colon not detected in 2nd token" << std::endl;
+	ccaid_ = std::atoi(tokenVec.at(0).c_str());
+
+	// Separate by Semicolon
+	unsigned prev = 1, pos = prev;
+	std::vector<CCAPatternGraphNode2 *> SubGraphs;
+	while (pos < tokenVec.size()) {
+		// Find Semicolon
+		while (++pos < tokenVec.size() && tokenVec.at(pos) != ";");
+		// Check Assignment
+		// [prev] : semicolon (';')
+		// [prev+1] : output register
+		// [prev+2] : assignement ('=')
+		// [prev+3~pos] : math expression
+		// [pos] : semicolon (';')
+		if (pos < prev + 1 || tokenVec.at(prev + 2) != "=")
+			std::cerr << "undefined pattern string : assignment not detected in 2nd token" << std::endl;
+		// Build Pattern Graph from Pattern String
+		char oregtype = tokenVec.at(prev + 1).at(0);
+		unsigned int oregnum = std::atoi(tokenVec.at(prev + 1).substr(1, std::string::npos).c_str());
+		oreginfo_.push_back({oregnum, oregtype});
+
+		std::cout << std::endl;
+		CCAPatternGraphNode2 *SG = BuildGraph2(std::vector<std::string>(tokenVec.begin() + prev + 3, tokenVec.begin() + pos));
+		SubGraphs.push_back(SG);
+
+		// Update prev
+		prev = pos;
+	}
+	G_ = new CCAPatternGraph2();
+	G_->setGraph(SubGraphs);
+	// Verbose
+	std::cout << "[PASS] Build Pass from \"" << patternStr << '\"' << std::endl;
+	for (unsigned idx = 0; idx < oreginfo_.size(); ++idx) {
+		std::cout << std::string(2, ' ') << "output register \'" << oreginfo_.at(idx).first << "\' (type " << oreginfo_.at(idx).second << ')'
+				  << std::endl;
+		G_->print(4, idx, std::cout);
+	}
+}
+
+// Pass Run
+PreservedAnalyses CCAUniversalPass3::run(Function &F, FunctionAnalysisManager &) {
+	raw_os_ostream lcout(std::cout);
+	std::set<Instruction *> RemovedInsts;
+	std::set<Instruction *> ReplacedInsts;
+	std::vector<CCAPattern2 *> PatternVec;
+
+	lcout << "[PASS] Pattern Searching in Function " << F.getName() << '\n'; 
+
+	for (Function::iterator FuncIter = F.begin(); FuncIter != F.end(); ++FuncIter) {
+		// Get Seed Instructions
+		std::vector<BinaryOperator *> AddInst;
+		std::vector<BinaryOperator *> SubInst;
+		std::vector<BinaryOperator *> MulInst;
+		std::vector<BinaryOperator *> UDivInst;
+
+		for (BasicBlock::iterator BBIter = FuncIter->begin(); BBIter != FuncIter->end(); ++BBIter) {
+			if (!isa<BinaryOperator>(BBIter)) continue;
+			BinaryOperator *I = cast<BinaryOperator>(BBIter);
+			switch (I->getOpcode()) {
+			case Instruction::BinaryOps::Add: AddInst.push_back(I); break;
+			case Instruction::BinaryOps::Sub: SubInst.push_back(I); break;
+			case Instruction::BinaryOps::Mul: MulInst.push_back(I); break;
+			case Instruction::BinaryOps::UDiv: UDivInst.push_back(I); break;
+			default:;
+			}
+		}
+
+		// Find Patterns
+		std::vector<std::vector<BinaryOperator *>::iterator> IterVec;
+		std::vector<std::vector<BinaryOperator *>::iterator> IterBeginVec;
+		std::vector<std::vector<BinaryOperator *>::iterator> IterEndVec;
+		auto BOVec = G_->getBOS();
+		for (auto BO : BOVec) {
+			switch (BO) {
+			case Instruction::BinaryOps::Add:
+				IterVec.push_back(AddInst.begin());
+				IterBeginVec.push_back(AddInst.begin());
+				IterEndVec.push_back(AddInst.end());
+				break;
+			case Instruction::BinaryOps::Sub:
+				IterVec.push_back(SubInst.begin());
+				IterBeginVec.push_back(SubInst.begin());
+				IterEndVec.push_back(SubInst.end());
+				break;
+			case Instruction::BinaryOps::Mul:
+				IterVec.push_back(MulInst.begin());
+				IterBeginVec.push_back(MulInst.begin());
+				IterEndVec.push_back(MulInst.end());
+				break;
+			case Instruction::BinaryOps::UDiv:
+				IterVec.push_back(UDivInst.begin());
+				IterBeginVec.push_back(MulInst.begin());
+				IterEndVec.push_back(UDivInst.end());
+				break;
+			default: break; /* error */
+			}
+		}
+
+		auto updateIter = [&](void) -> bool {
+			for (unsigned idx = 0; idx < IterVec.size(); ++idx) {
+				// No Candidates
+				if (IterVec.at(idx) == IterEndVec.at(idx)) return false;
+				// Increase Iterator
+				IterVec.at(idx)++;
+				// Check End
+				if (IterVec.at(idx) != IterEndVec.at(idx)) return true;
+				// Come back to First
+				IterVec.at(idx) = IterBeginVec.at(idx);
+			}
+			return false;
+		};
+
+		auto printIter = [&](void) -> void {
+			for (auto &it : IterVec) {
+				(*it)->print(lcout);
+				lcout << '\n';
+			}
+			lcout << '\n';
+		};
+
+		auto checkIterDuplicated = [&](void) -> bool {
+			for (unsigned i = 0; i < IterVec.size(); ++i) {
+				for (unsigned j = 0; j < IterVec.size(); ++j)
+					if (i != j && IterVec.at(i) == IterVec.at(j)) { return true; }
+			}
+			return false;
+		};
+		
+		lcout << "[PASS] Pattern Searching in Function " << F.getName() << ", BasicBlock " << FuncIter->getName() << " : Candidates - "
+			  << "Add = " << AddInst.size() << ", "
+			  << "Sub = " << SubInst.size() << ", "
+			  << "Mul = " << MulInst.size() << ", "
+			  << "UDiv = " << UDivInst.size() << ", " << '\n';
+		lcout.flush();
+
+		bool terminated = false;
+		while (!terminated) {
+			// Update Until Not Duplicated
+			while (!terminated && checkIterDuplicated()) terminated = !updateIter();
+			if (terminated) break;
+
+			// Get Patterns using Candidates
+			std::vector<Instruction *> Candidate;
+			for (auto &IterVecIter : IterVec) Candidate.push_back(*IterVecIter);
+			CCAPattern2 *P = CCAPattern2::get(G_, Candidate, RemovedInsts, ReplacedInsts);
+			if (P != nullptr) {
+				PatternVec.push_back(P);
+				ReplacedInsts.insert(Candidate.begin(), Candidate.end());
+			}
+			// Update Iterators
+			terminated = !updateIter();
+		}
 	}
 
 	// Verbose

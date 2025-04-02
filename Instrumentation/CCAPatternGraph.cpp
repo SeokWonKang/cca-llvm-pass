@@ -88,7 +88,7 @@ CCAPatternGraph *BuildGraph(const std::vector<std::string> &patternTokVec) {
 	return BuildCCAPatternGraphFromPostfixTokens(ConvertInfixToPostfix(patternTokVec));
 }
 
-inline CCAPatternGraphNode2 *BuildCCAPatternGraphFromPostfixTokens2(const std::vector<std::string> &PostfixTokenVec) {
+inline CCAPatternGraphNode2 *BuildCCAPatternGraph2FromPostfixTokens(const std::vector<std::string> &PostfixTokenVec) {
 	std::stack<CCAPatternGraphNode2 *> st;
 	for (auto &tok : PostfixTokenVec) {
 		if (isOpTok(tok)) {
@@ -105,9 +105,12 @@ inline CCAPatternGraphNode2 *BuildCCAPatternGraphFromPostfixTokens2(const std::v
 }
 
 CCAPatternGraphNode2 *BuildGraph2(const std::vector<std::string> &patternTokVec) {
-	return BuildCCAPatternGraphFromPostfixTokens2(ConvertInfixToPostfix(patternTokVec));
+	return BuildCCAPatternGraph2FromPostfixTokens(ConvertInfixToPostfix(patternTokVec));
 }
 
+//---------------------------------
+// CCA Pattern Graph
+//---------------------------------
 // Print Graph
 void CCAPatternGraphOperatorNode::print(unsigned int indent, std::ostream &os) const {
 	os << std::string(indent, ' ') << "operator \'" << opchar_ << '\'' << std::endl;
@@ -178,9 +181,9 @@ bool CCAPatternGraphRegisterNode::matchWithCode(Value *StartPoint,
 	return true;
 }
 
-//---------------------------------------------------------------
-// Match and Parse Codes
-//---------------------------------------------------------------
+//-------------------------------------
+// Class: CCA Pattern Graph 2
+//-------------------------------------
 
 // Print Graph
 void CCAPatternGraphOperatorNode2::print(unsigned int indent, std::ostream &os) const {
@@ -263,6 +266,7 @@ void CCAPatternGraphOperatorNode2::getRemoveList(Value *StartPoint, User *UserTa
 
 void CCAPatternGraphRegisterNode2::getRemoveList(Value *StartPoint, User *UserTarget, std::map<Value *, std::set<User *>> &RemoveList) const {}
 
+// Match With Codes
 bool CCAPatternGraph2::matchWithCode(const std::vector<Instruction *> &Candidate,
 									 const std::set<Instruction *> &UnRemovable,
 									 std::set<Instruction *> &Removed,

@@ -75,6 +75,18 @@ class CCAUniversalPass2 : public PassInfoMixin<CCAUniversalPass> {
 	static bool isRequired(void) { return true; }
 };
 
+class CCAUniversalPass3 : public PassInfoMixin<CCAUniversalPass> {
+  private:
+	unsigned int ccaid_;
+	std::vector<std::pair<unsigned int, char>> oreginfo_;
+	CCAPatternGraph2 *G_;
+
+  public:
+	CCAUniversalPass3(std::string patternStr);
+	PreservedAnalyses run(Function &, FunctionAnalysisManager &);
+	static bool isRequired(void) { return true; }
+};
+
 } // namespace cca
 } // namespace llvm
 
