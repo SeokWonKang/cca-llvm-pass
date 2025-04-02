@@ -26,7 +26,25 @@ class CCAPattern final {
 						   Instruction *StartPoint,
 						   std::set<Instruction *> &Removed,
 						   const std::set<Instruction *> &Replaced);
+	static CCAPattern *get(CCAPatternGraph2 *Graph, const std::vector<Instruction *> &Candidate, std::set<Instruction *> &WouldBeRemoved);
 	void build(unsigned int ccaid, unsigned int oregnum, char oregtype, LLVMContext &Context);
+};
+
+class CCAPattern2 final {
+  private:
+	const std::vector<Instruction *> C_;
+	std::map<unsigned int, Value *> InputRegValueMap_;
+
+	CCAPattern2(const std::vector<Instruction *> Candidate) : C_(Candidate), InputRegValueMap_() {}
+
+  public:
+	~CCAPattern2() {}
+	void print(unsigned int indent, std::ostream &os) const;
+	static CCAPattern2 *get(CCAPatternGraph2 *Graph,
+							const std::vector<Instruction *> &Candidate,
+							std::set<Instruction *> &Removed,
+							const std::set<Instruction *> &UnRemovable);
+	void build(unsigned int ccaid, const std::vector<std::pair<unsigned int, char>> &oreginfo, LLVMContext &Context);
 };
 
 //-------------------------------------
@@ -41,6 +59,18 @@ class CCAUniversalPass : public PassInfoMixin<CCAUniversalPass> {
 
   public:
 	CCAUniversalPass(std::string patternStr);
+	PreservedAnalyses run(Function &, FunctionAnalysisManager &);
+	static bool isRequired(void) { return true; }
+};
+
+class CCAUniversalPass2 : public PassInfoMixin<CCAUniversalPass> {
+  private:
+	unsigned int ccaid_;
+	std::vector<std::pair<unsigned int, char>> oreginfo_;
+	CCAPatternGraph2 *G_;
+
+  public:
+	CCAUniversalPass2(std::string patternStr);
 	PreservedAnalyses run(Function &, FunctionAnalysisManager &);
 	static bool isRequired(void) { return true; }
 };
