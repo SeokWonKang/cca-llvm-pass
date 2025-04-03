@@ -1,7 +1,7 @@
-#include "Instrumentation/CCAPasses.hpp"
-#include "Instrumentation/CCAUniversal.hpp"
-#include "llvm/Passes/PassBuilder.h"
 #include "llvm/Passes/PassPlugin.h"
+#include "Instrumentation/CCAUniversal.hpp"
+#include "Instrumentation/Fixed/CCAFixedPasses.hpp"
+#include "llvm/Passes/PassBuilder.h"
 
 using namespace llvm;
 
@@ -17,7 +17,7 @@ PassPluginLibraryInfo getPassPluginInfo() {
 			// MPM.addPass(createModuleToFunctionPassAdaptor(cca::CCAUniversalPass("2: r30 = (r24 * r25 + r26 * r27) + r28")));
 			// MPM.addPass(createModuleToFunctionPassAdaptor(cca::CCAUniversalPass("2: r30 = r24 * r25 + (r26 * r27 + r28)")));
 			// MPM.addPass(createModuleToFunctionPassAdaptor(cca::CCAUniversalPass("0: r30 = r24 * r25 + r26")));
-			MPM.addPass(createModuleToFunctionPassAdaptor(cca::CCAUniversalPass3("3: r30 = r24 + r25; r29 = r24 + r26; r28 = r24 + r27; r27 = r24 + r28"))); 
+			MPM.addPass(createModuleToFunctionPassAdaptor(cca::CCAUniversalPass2("3: r30 = r24 + r25 + r26 + r27 + r28")));
 			/*
 			MPM.addPass(createModuleToFunctionPassAdaptor(cca::CCAUniversalPass2("3: r27 = r24 + r25; r28 = r24 + r26; r29 = r24 + r27")));
 			MPM.addPass(createModuleToFunctionPassAdaptor(cca::CCAUniversalPass2("3: r27 = r24 + r25; r28 = r24 + r26")));

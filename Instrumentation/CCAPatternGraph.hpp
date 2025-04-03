@@ -136,7 +136,7 @@ class CCAPatternGraph2 final {
 	std::vector<CCAPatternGraphNode2 *> graphs_;
 
   public:
-	CCAPatternGraph2() : graphs_() {};
+	CCAPatternGraph2() : graphs_(){};
 	~CCAPatternGraph2() {
 		for (auto &G : graphs_) delete G;
 		graphs_.clear();

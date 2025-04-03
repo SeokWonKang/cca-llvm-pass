@@ -320,7 +320,8 @@ CCAUniversalPass2::CCAUniversalPass2(std::string patternStr) {
 	std::vector<CCAPatternGraphNode2 *> SubGraphs;
 	while (pos < tokenVec.size()) {
 		// Find Semicolon
-		while (++pos < tokenVec.size() && tokenVec.at(pos) != ";");
+		while (++pos < tokenVec.size() && tokenVec.at(pos) != ";")
+			;
 		// Check Assignment
 		// [prev] : semicolon (';')
 		// [prev+1] : output register
@@ -542,7 +543,8 @@ CCAUniversalPass3::CCAUniversalPass3(std::string patternStr) {
 	std::vector<CCAPatternGraphNode2 *> SubGraphs;
 	while (pos < tokenVec.size()) {
 		// Find Semicolon
-		while (++pos < tokenVec.size() && tokenVec.at(pos) != ";");
+		while (++pos < tokenVec.size() && tokenVec.at(pos) != ";")
+			;
 		// Check Assignment
 		// [prev] : semicolon (';')
 		// [prev+1] : output register
@@ -581,7 +583,7 @@ PreservedAnalyses CCAUniversalPass3::run(Function &F, FunctionAnalysisManager &)
 	std::set<Instruction *> ReplacedInsts;
 	std::vector<CCAPattern2 *> PatternVec;
 
-	lcout << "[PASS] Pattern Searching in Function " << F.getName() << '\n'; 
+	lcout << "[PASS] Pattern Searching in Function " << F.getName() << '\n';
 
 	for (Function::iterator FuncIter = F.begin(); FuncIter != F.end(); ++FuncIter) {
 		// Get Seed Instructions
@@ -662,7 +664,7 @@ PreservedAnalyses CCAUniversalPass3::run(Function &F, FunctionAnalysisManager &)
 			}
 			return false;
 		};
-		
+
 		lcout << "[PASS] Pattern Searching in Function " << F.getName() << ", BasicBlock " << FuncIter->getName() << " : Candidates - "
 			  << "Add = " << AddInst.size() << ", "
 			  << "Sub = " << SubInst.size() << ", "

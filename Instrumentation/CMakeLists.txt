@@ -3,14 +3,13 @@
 #-----------------------
 # Library
 add_library( PIMCCALLVMInstrumentation MODULE 
-	# InsertCommenttedInlineBeforeRet.cpp 
 	Utils.cpp
-	CCAMulAdd.cpp
-	# CCAMulAddDouble.cpp
-	# CCAMulSubMulDiv.cpp
+	# Fixed/CCAMulAdd.cpp
+	# Fixed/CCAMulAddDouble.cpp
+	# Fixed/CCAMulSubMulDiv.cpp
 	CCAPatternGraph.cpp
 	CCAUniversal.cpp
-	CCAPassPlugin.cpp )
+	PassPlugin.cpp )
 target_include_directories( PIMCCALLVMInstrumentation PUBLIC
 	$<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}>
 	$<INSTALL_INTERFACE:include> )
