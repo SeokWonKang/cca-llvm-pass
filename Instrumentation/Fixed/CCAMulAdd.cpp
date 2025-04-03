@@ -1,4 +1,4 @@
-#include "Instrumentation/CCAPasses.hpp"
+#include "Instrumentation/Fixed/CCAFixedPasses.hpp"
 #include "Instrumentation/Utils.hpp"
 #include "llvm/IR/InlineAsm.h"
 #include "llvm/IR/InstrTypes.h"

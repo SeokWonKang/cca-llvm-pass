@@ -1,6 +1,6 @@
-#include "Instrumentation/CCAPasses.hpp"
-#include "llvm/Passes/PassBuilder.h"
 #include "llvm/Passes/PassPlugin.h"
+#include "Instrumentation/Fixed/CCAFixedPasses.hpp"
+#include "llvm/Passes/PassBuilder.h"
 
 using namespace llvm;
 
