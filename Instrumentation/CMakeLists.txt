@@ -8,6 +8,8 @@ add_library( PIMCCALLVMInstrumentation MODULE
 	# Fixed/CCAMulAddDouble.cpp
 	# Fixed/CCAMulSubMulDiv.cpp
 	CCAPatternGraph.cpp
+	parser/cca.tab.cc
+	parser/lex.yy.cc
 	CCAUniversal.cpp
 	PassPlugin.cpp )
 target_include_directories( PIMCCALLVMInstrumentation PUBLIC

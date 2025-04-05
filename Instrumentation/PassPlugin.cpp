@@ -9,23 +9,10 @@ using namespace llvm;
 PassPluginLibraryInfo getPassPluginInfo() {
 	const auto callback = [](PassBuilder &PB) {
 		PB.registerOptimizerLastEPCallback([&](ModulePassManager &MPM, auto) {
-			// MPM.addPass(createModuleToFunctionPassAdaptor(cca::CCAMulSubMulDivPass()));
-			// MPM.addPass(createModuleToFunctionPassAdaptor(cca::CCAMulAddDoublePass()));
-			// MPM.addPass(createModuleToFunctionPassAdaptor(cca::CCAMulAddPass()));
-			// MPM.addPass(createModuleToFunctionPassAdaptor(cca::CCAUniversalPass("3: r30 = r24 * r25 - (r26 * r27) / r28")));
-			// MPM.addPass(createModuleToFunctionPassAdaptor(cca::CCAUniversalPass("3: r30 = r24 * r25 - r26 * (r27 / r28)")));
-			// MPM.addPass(createModuleToFunctionPassAdaptor(cca::CCAUniversalPass("2: r30 = (r24 * r25 + r26 * r27) + r28")));
-			// MPM.addPass(createModuleToFunctionPassAdaptor(cca::CCAUniversalPass("2: r30 = r24 * r25 + (r26 * r27 + r28)")));
-			// MPM.addPass(createModuleToFunctionPassAdaptor(cca::CCAUniversalPass("0: r30 = r24 * r25 + r26")));
-			MPM.addPass(createModuleToFunctionPassAdaptor(cca::CCAUniversalPass2("3: r30 = r24 + r25 + r26 + r27 + r28")));
-			/*
-			MPM.addPass(createModuleToFunctionPassAdaptor(cca::CCAUniversalPass2("3: r27 = r24 + r25; r28 = r24 + r26; r29 = r24 + r27")));
-			MPM.addPass(createModuleToFunctionPassAdaptor(cca::CCAUniversalPass2("3: r27 = r24 + r25; r28 = r24 + r26")));
-			MPM.addPass(createModuleToFunctionPassAdaptor(cca::CCAUniversalPass2("3: r27 = r24 + r25; r28 = r26 + r27")));
-
-			MPM.addPass(createModuleToFunctionPassAdaptor(cca::CCAUniversalPass2("3: r27 = r24 + r25; r28 = r24 + r26; r29 = r24 + r27; r30 = r24 +
-			r28")));
-			*/
+			MPM.addPass(createModuleToFunctionPassAdaptor(cca::CCAUniversalPass("7: o24 = i24 + i25 + i26 + i27 + i28")));
+			MPM.addPass(
+				createModuleToFunctionPassAdaptor(cca::CCAUniversalPass("8: o24 = i24 + i28; o25 = i25 + o24; o26 = i26 + o25; o27 = i27 + o26")));
+			MPM.addPass(createModuleToFunctionPassAdaptor(cca::CCAUniversalPass("9: t24 = i24 > i25 ? i24 : i25; o24 = t24 > i26 ? t24 : i26")));
 			return true;
 		});
 	};

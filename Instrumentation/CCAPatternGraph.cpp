@@ -2,6 +2,7 @@
 #include "Instrumentation/Utils.hpp"
 #include "llvm/IR/InstrTypes.h"
 #include "llvm/IR/Instruction.h"
+#include "llvm/IR/Instructions.h"
 #include <algorithm>
 #include <iostream>
 #include <numeric>
@@ -12,7 +13,10 @@
 namespace llvm {
 namespace cca {
 
-// Build Graph from String
+/*
+//-------------------------------------------
+// Build (Sub)Graph from Pattern String
+//-------------------------------------------
 inline bool isOpTok(const std::string &tok) {
 	if (tok == "+" || tok == "-" || tok == "*" || tok == "/") return true;
 	else
@@ -68,7 +72,7 @@ inline std::vector<std::string> ConvertInfixToPrefix(const std::vector<std::stri
 	return PrefixTokenVec;
 }
 
-inline CCAPatternGraph *BuildCCAPatternGraphFromPostfixTokens(const std::vector<std::string> &PostfixTokenVec) {
+inline CCAPatternGraphNode *BuildCCAPatternGraph2FromPostfixTokens(const std::vector<std::string> &PostfixTokenVec) {
 	std::stack<CCAPatternGraphNode *> st;
 	for (auto &tok : PostfixTokenVec) {
 		if (isOpTok(tok)) {
@@ -84,176 +88,339 @@ inline CCAPatternGraph *BuildCCAPatternGraphFromPostfixTokens(const std::vector<
 	return st.top();
 }
 
-CCAPatternGraph *BuildGraph(const std::vector<std::string> &patternTokVec) {
-	return BuildCCAPatternGraphFromPostfixTokens(ConvertInfixToPostfix(patternTokVec));
+// CCA Pattern SubGraph
+CCAPatternSubGraph::CCAPatternSubGraph(char regtype, unsigned regnum, const std::vector<std::string> &patternTokenVec)
+	: CCAPatternGraphNode(), regtype_(regtype), regnum_(regnum), G_(nullptr) {
+	G_ = BuildCCAPatternGraph2FromPostfixTokens(ConvertInfixToPostfix(patternTokenVec));
 }
+*/
 
-inline CCAPatternGraphNode2 *BuildCCAPatternGraph2FromPostfixTokens(const std::vector<std::string> &PostfixTokenVec) {
-	std::stack<CCAPatternGraphNode2 *> st;
-	for (auto &tok : PostfixTokenVec) {
-		if (isOpTok(tok)) {
-			CCAPatternGraphNode2 *rightNode = st.top();
-			st.pop();
-			CCAPatternGraphNode2 *leftNode = st.top();
-			st.pop();
-			CCAPatternGraphNode2 *opNode = new CCAPatternGraphOperatorNode2(tok[0], leftNode, rightNode);
-			st.push(opNode);
-		} else
-			st.push(new CCAPatternGraphRegisterNode2(tok));
+//-------------------------------------------
+// Class: CCA Pattern Graph
+//-------------------------------------------
+// Print Node & Graph
+void CCAPatternSubGraph::print(unsigned int indent, std::ostream &os) const {
+	os << std::string(indent, ' ') << "assignment ";
+	switch (regtype_) {
+	case 'o': os << "output "; break;
+	case 't': os << "temporary "; break;
+	default: os << "unknown (type " << regtype_ << ") "; break;
 	}
-	return st.top();
+	os << '\'' << regnum_ << '\'';
+	if (expr_ == nullptr) os << " : unliked\n";
+	else {
+		os << '\n';
+		expr_->print(indent + 2, os);
+	}
 }
 
-CCAPatternGraphNode2 *BuildGraph2(const std::vector<std::string> &patternTokVec) {
-	return BuildCCAPatternGraph2FromPostfixTokens(ConvertInfixToPostfix(patternTokVec));
+void CCAPatternSubGraph::print(unsigned int indent, llvm::raw_ostream &os) const {
+	os << std::string(indent, ' ') << "assignment ";
+	switch (regtype_) {
+	case 'o': os << "output "; break;
+	case 't': os << "temporary "; break;
+	default: os << "unknown (type " << regtype_ << ") "; break;
+	}
+	os << '\'' << regnum_ << '\'';
+	if (expr_ == nullptr) os << " : unliked\n";
+	else {
+		os << '\n';
+		expr_->print(indent + 2, os);
+	}
 }
 
-//---------------------------------
-// CCA Pattern Graph
-//---------------------------------
-// Print Graph
+void CCAPatternGraphRegisterNode::print(unsigned int indent, std::ostream &os) const {
+	os << std::string(indent, ' ') << "register ";
+	switch (regtype_) {
+	case 'i': os << "input "; break;
+	case 'o': os << "output "; break;
+	case 't': os << "temporary "; break;
+	default: os << "unknown (type " << regtype_ << ") "; break;
+	}
+	os << '\'' << regnum_ << '\'';
+	if (regtype_ == 'o' || regtype_ == 't') {
+		if (SG_ == nullptr) os << " : unliked\n";
+		else {
+			os << '\n';
+			SG_->print(indent, os);
+		}
+	} else
+		os << '\n';
+}
+
+void CCAPatternGraphRegisterNode::print(unsigned int indent, llvm::raw_ostream &os) const {
+	os << std::string(indent, ' ') << "register ";
+	switch (regtype_) {
+	case 'i': os << "input "; break;
+	case 'o': os << "output "; break;
+	case 't': os << "temporary "; break;
+	default: os << "unknown (type " << regtype_ << ") "; break;
+	}
+	os << '\'' << regnum_ << '\'';
+	if (regtype_ == 'o' || regtype_ == 't') {
+		if (SG_ == nullptr) os << " : unliked\n";
+		else {
+			os << " : linked below\n";
+			SG_->print(indent, os);
+		}
+	} else
+		os << '\n';
+}
+
 void CCAPatternGraphOperatorNode::print(unsigned int indent, std::ostream &os) const {
-	os << std::string(indent, ' ') << "operator \'" << opchar_ << '\'' << std::endl;
+	os << std::string(indent, ' ') << "operator \'" << op_ << '\'' << std::endl;
 	left_->print(indent + 2, os);
 	right_->print(indent + 2, os);
 }
 
-void CCAPatternGraphRegisterNode::print(unsigned int indent, std::ostream &os) const {
-	os << std::string(indent, ' ') << "register \'" << regnum_ << "\' (type " << regtype_ << ')' << std::endl;
+void CCAPatternGraphOperatorNode::print(unsigned int indent, llvm::raw_ostream &os) const {
+	os << std::string(indent, ' ') << "operator \'" << op_ << "\'\n";
+	left_->print(indent + 2, os);
+	right_->print(indent + 2, os);
 }
 
-// Match and Parse Codes
-bool CCAPatternGraphOperatorNode::matchWithCode(Value *StartPoint,
-												std::set<Instruction *> &Removed,
-												const std::set<Instruction *> &Replaced,
-												std::map<unsigned int, Value *> &InputRegValueMap) const {
-	Instruction::BinaryOps binaryOps;
-	switch (opchar_) {
-	case '+': binaryOps = Instruction::Add; break;
-	case '-': binaryOps = Instruction::Sub; break;
-	case '*': binaryOps = Instruction::Mul; break;
-	case '/': binaryOps = Instruction::UDiv; break;
-	default: binaryOps = Instruction::BinaryOpsEnd;
+void CCAPatternGraphCompareNode::print(unsigned indent, std::ostream &os) const {
+	os << std::string(indent, ' ') << "compare \'" << op_ << '\'' << std::endl;
+	left_->print(indent + 2, os);
+	right_->print(indent + 2, os);
+}
+
+void CCAPatternGraphCompareNode::print(unsigned indent, llvm::raw_ostream &os) const {
+	os << std::string(indent, ' ') << "compare \'" << op_ << "\'\n";
+	left_->print(indent + 2, os);
+	right_->print(indent + 2, os);
+}
+
+void CCAPatternGraphSelectNode::print(unsigned indent, std::ostream &os) const {
+	os << std::string(indent, ' ') << "select\n";
+	cmp_->print(indent + 2, os);
+	os << std::string(indent + 2, ' ') << "true:\n";
+	true_expr_->print(indent + 4, os);
+	os << std::string(indent + 2, ' ') << "false:\n";
+	false_expr_->print(indent + 4, os);
+}
+
+void CCAPatternGraphSelectNode::print(unsigned indent, llvm::raw_ostream &os) const {
+	os << std::string(indent, ' ') << "select\n";
+	cmp_->print(indent + 2, os);
+	os << std::string(indent + 2, ' ') << "true:\n";
+	true_expr_->print(indent + 4, os);
+	os << std::string(indent + 2, ' ') << "false:\n";
+	false_expr_->print(indent + 4, os);
+}
+
+// Ready For Search
+void CCAPatternGraphRegisterNode::readyForSearch(void) {
+	if (SG_ != nullptr) SG_->readyForSearch();
+}
+
+void CCAPatternGraphOperatorNode::readyForSearch(void) {
+	left_->readyForSearch();
+	right_->readyForSearch();
+}
+
+void CCAPatternGraphCompareNode::readyForSearch(void) {
+	left_->readyForSearch();
+	right_->readyForSearch();
+}
+
+void CCAPatternGraphSelectNode::readyForSearch(void) {
+	cmp_->readyForSearch();
+	true_expr_->readyForSearch();
+	false_expr_->readyForSearch();
+}
+
+// Check Valid
+bool CCAPatternGraphRegisterNode::checkValid(void) {
+	if ((regtype_ == 'o' || regtype_ == 't') && SG_ == nullptr) {
+		std::cerr << "[PIM-CCA-PASS][ERROR] The register \"" << regtype_ << regnum_ << "\" is not linked\n";
+		return false;
 	}
-	if (binaryOps == Instruction::BinaryOpsEnd) return false; /* error */
-	if (!isaBO(StartPoint, binaryOps)) return false;
-	BinaryOperator *BO = cast<BinaryOperator>(StartPoint);
-	std::vector<StoreInst *> SVec;
-	// TODO: Tertiary Store with Intermediate Results
-	if (CheckOtherUseExistWithoutStore(BO->getOperand(0), BO, SVec)) return false;
-	if (CheckOtherUseExistWithoutStore(BO->getOperand(1), BO, SVec)) return false;
-	{
-		std::set<Instruction *> TempRemoved(Removed);
-		std::map<unsigned int, Value *> TempInputRegValueMap(InputRegValueMap);
-		bool matched = (left_->matchWithCode(BO->getOperand(0), TempRemoved, Replaced, TempInputRegValueMap) &&
-						right_->matchWithCode(BO->getOperand(1), TempRemoved, Replaced, TempInputRegValueMap));
-		if (matched) {
-			Removed = TempRemoved;
-			Removed.insert(SVec.begin(), SVec.end());
-			if (Replaced.find(BO) == Replaced.end()) Removed.insert(BO);
-			InputRegValueMap = TempInputRegValueMap;
-			return true;
-		}
-	}
-	if (opchar_ == '+' || opchar_ == '*') {
-		std::set<Instruction *> TempRemoved(Removed);
-		std::map<unsigned int, Value *> TempInputRegValueMap(InputRegValueMap);
-		bool matched = (left_->matchWithCode(BO->getOperand(1), TempRemoved, Replaced, TempInputRegValueMap) &&
-						right_->matchWithCode(BO->getOperand(0), TempRemoved, Replaced, TempInputRegValueMap));
-		if (matched) {
-			Removed = TempRemoved;
-			Removed.insert(SVec.begin(), SVec.end());
-			if (Replaced.find(BO) == Replaced.end()) Removed.insert(BO);
-			InputRegValueMap = TempInputRegValueMap;
-			return true;
-		}
+	return true;
+}
+
+bool CCAPatternGraphOperatorNode::checkValid(void) {
+	if (!left_->checkValid()) return false;
+	if (!right_->checkValid()) return false;
+	return true;
+}
+
+bool CCAPatternGraphCompareNode::checkValid(void) {
+	if (!left_->checkValid()) return false;
+	if (!right_->checkValid()) return false;
+	return true;
+}
+
+bool CCAPatternGraphSelectNode::checkValid(void) {
+	if (!cmp_->checkValid()) return false;
+	if (!true_expr_->checkValid()) return false;
+	if (!false_expr_->checkValid()) return false;
+	return true;
+}
+
+// Link Subgraph
+bool CCAPatternGraphRegisterNode::linkSubgraph(char regtype, unsigned int regnum, CCAPatternSubGraph *SG) {
+	if (SG_ != nullptr) return SG_->linkSubgraph(regtype, regnum, SG);
+	if (SG_ == nullptr && regtype_ == regtype && regnum_ == regnum) {
+		SG_ = SG;
+		return true;
 	}
 	return false;
 }
 
-bool CCAPatternGraphRegisterNode::matchWithCode(Value *StartPoint,
-												std::set<Instruction *> &Removed,
-												const std::set<Instruction *> &Replaced,
-												std::map<unsigned int, Value *> &InputRegValueMap) const {
-	if (InputRegValueMap.find(regnum_) != InputRegValueMap.end() && InputRegValueMap.at(regnum_) == StartPoint) return true;
-	if (isa<Instruction>(StartPoint) && Removed.find(cast<Instruction>(StartPoint)) != Removed.end()) return false;
-	InputRegValueMap.insert({regnum_, StartPoint});
-	return true;
+bool CCAPatternGraphOperatorNode::linkSubgraph(char regtype, unsigned int regnum, CCAPatternSubGraph *SG) {
+	bool set = false;
+	if (left_->linkSubgraph(regtype, regnum, SG)) set = true;
+	if (right_->linkSubgraph(regtype, regnum, SG)) set = true;
+	return set;
 }
 
-//-------------------------------------
-// Class: CCA Pattern Graph 2
-//-------------------------------------
-
-// Print Graph
-void CCAPatternGraphOperatorNode2::print(unsigned int indent, std::ostream &os) const {
-	os << std::string(indent, ' ') << "operator \'" << opchar_ << '\'' << std::endl;
-	left_->print(indent + 2, os);
-	right_->print(indent + 2, os);
+bool CCAPatternGraphCompareNode::linkSubgraph(char regtype, unsigned int regnum, CCAPatternSubGraph *SG) {
+	bool set = false;
+	if (left_->linkSubgraph(regtype, regnum, SG)) set = true;
+	if (right_->linkSubgraph(regtype, regnum, SG)) set = true;
+	return set;
 }
 
-void CCAPatternGraphRegisterNode2::print(unsigned int indent, std::ostream &os) const {
-	os << std::string(indent, ' ') << "register \'" << regnum_ << "\' (type " << regtype_ << ')' << std::endl;
+bool CCAPatternGraphSelectNode::linkSubgraph(char regtype, unsigned int regnum, CCAPatternSubGraph *SG) {
+	bool set = false;
+	if (cmp_->linkSubgraph(regtype, regnum, SG)) set = true;
+	if (true_expr_->linkSubgraph(regtype, regnum, SG)) set = true;
+	if (false_expr_->linkSubgraph(regtype, regnum, SG)) set = true;
+	return set;
 }
-
-void CCAPatternGraph2::print(unsigned int indent, unsigned int gidx, std::ostream &os) const { graphs_.at(gidx)->print(indent, os); }
 
 // Get Flag Sizes
-unsigned CCAPatternGraphOperatorNode2::flagsize(void) const {
-	return left_->flagsize() + right_->flagsize() + ((opchar_ == '+' || opchar_ == '*') ? 1 : 0);
+unsigned CCAPatternGraphRegisterNode::flagsize(void) {
+	if (SG_ != nullptr) return SG_->flagsize();
+	return 0;
 }
+unsigned CCAPatternGraphOperatorNode::flagsize(void) { return left_->flagsize() + right_->flagsize() + (reversable() ? 1 : 0); }
+unsigned CCAPatternGraphCompareNode::flagsize(void) { return left_->flagsize() + right_->flagsize() + (reversable() ? 1 : 0); }
+unsigned CCAPatternGraphSelectNode::flagsize(void) { return cmp_->flagsize() + true_expr_->flagsize() + false_expr_->flagsize(); }
 
 // Set Reverse From Flag Vector
-void CCAPatternGraphOperatorNode2::reverse(const std::vector<bool> &flags, unsigned &index) {
-	if (opchar_ == '+' || opchar_ == '*') {
+void CCAPatternGraphRegisterNode::setReverse(const std::vector<bool> &flags, unsigned int &index) {
+	if (SG_ != nullptr) SG_->setReverse(flags, index);
+}
+
+void CCAPatternGraphOperatorNode::setReverse(const std::vector<bool> &flags, unsigned &index) {
+	if (reversable()) {
 		reversed_ = flags[index];
 		index++;
 	}
-	left_->reverse(flags, index);
-	right_->reverse(flags, index);
+	left_->setReverse(flags, index);
+	right_->setReverse(flags, index);
+}
+
+void CCAPatternGraphCompareNode::setReverse(const std::vector<bool> &flags, unsigned &index) {
+	if (reversable()) {
+		reversed_ = flags[index];
+		index++;
+	}
+	left_->setReverse(flags, index);
+	right_->setReverse(flags, index);
+}
+
+void CCAPatternGraphSelectNode::setReverse(const std::vector<bool> &flags, unsigned &index) {
+	cmp_->setReverse(flags, index);
+	true_expr_->setReverse(flags, index);
+	false_expr_->setReverse(flags, index);
 }
 
 // Match with Codes
-bool CCAPatternGraphOperatorNode2::matchWithCode(Value *StartPoint,
-												 const std::set<Instruction *> &AlreadyRemoved,
-												 std::map<unsigned int, Value *> &InputRegValueMap) const {
-	Instruction::BinaryOps binaryOps;
-	// Check Opcode
-	switch (opchar_) {
-	case '+': binaryOps = Instruction::Add; break;
-	case '-': binaryOps = Instruction::Sub; break;
-	case '*': binaryOps = Instruction::Mul; break;
-	case '/': binaryOps = Instruction::UDiv; break;
-	default: binaryOps = Instruction::BinaryOpsEnd;
-	}
-	if (binaryOps == Instruction::BinaryOpsEnd) return false; /* error */
-	if (!isaBO(StartPoint, binaryOps)) return false;
-
-	// Check Matched of Child Nodes
-	BinaryOperator *BO = cast<BinaryOperator>(StartPoint);
-	return left_->matchWithCode(BO->getOperand(reversed_ ? 1 : 0), AlreadyRemoved, InputRegValueMap) &&
-		   right_->matchWithCode(BO->getOperand(reversed_ ? 0 : 1), AlreadyRemoved, InputRegValueMap);
-}
-
-bool CCAPatternGraphRegisterNode2::matchWithCode(Value *StartPoint,
-												 const std::set<Instruction *> &AlreadyRemoved,
-												 std::map<unsigned int, Value *> &InputRegValueMap) const {
+bool CCAPatternGraphRegisterNode::matchWithCode(Value *StartPoint,
+												const std::set<Instruction *> &AlreadyRemoved,
+												std::map<unsigned int, Value *> &IRVM,
+												std::map<unsigned int, Value *> &ORVM,
+												std::map<unsigned int, Value *> &TRVM) const {
+	// Check Type
+	if (StartPoint->getType() != Type::getInt32Ty(StartPoint->getContext())) return false;
 	// Already Removed or Matched
 	if (isa<Constant>(StartPoint)) return false;
 	if (isa<Instruction>(StartPoint) && AlreadyRemoved.find(cast<Instruction>(StartPoint)) != AlreadyRemoved.end()) return false;
-	if (InputRegValueMap.find(regnum_) != InputRegValueMap.end()) {
-		if (InputRegValueMap.at(regnum_) == StartPoint) return true;
-		else
-			return false;
+	// For Input Registers
+	if (regtype_ == 'i') {
+		if (IRVM.find(regnum_) != IRVM.end()) return IRVM.at(regnum_) == StartPoint;
+		IRVM.insert({regnum_, StartPoint}); // Insert
+		return true;
 	}
-	// Insert to Register Map
-	InputRegValueMap.insert({regnum_, StartPoint});
-	// Return Matched
-	return true;
+	// For Output Register
+	else if (regtype_ == 'o') {
+		if (ORVM.find(regnum_) != ORVM.end()) return ORVM.at(regnum_) == StartPoint;
+		if (SG_ != nullptr) {
+			if (SG_->matchWithCode(StartPoint, AlreadyRemoved, IRVM, ORVM, TRVM)) {
+				ORVM.insert({regnum_, StartPoint}); // Insert
+				return true;
+			}
+		}
+		return false;
+	}
+	// For Temporary Registers
+	else if (regtype_ == 't') {
+		if (TRVM.find(regnum_) != TRVM.end()) return TRVM.at(regnum_) == StartPoint;
+		if (SG_ != nullptr) {
+			if (SG_->matchWithCode(StartPoint, AlreadyRemoved, IRVM, ORVM, TRVM)) {
+				TRVM.insert({regnum_, StartPoint}); // Insert
+				return true;
+			}
+		}
+		return false;
+	}
+	// Error
+	else
+		return false;
+}
+
+bool CCAPatternGraphOperatorNode::matchWithCode(Value *StartPoint,
+												const std::set<Instruction *> &AlreadyRemoved,
+												std::map<unsigned int, Value *> &IRVM,
+												std::map<unsigned int, Value *> &ORVM,
+												std::map<unsigned int, Value *> &TRVM) const {
+	unsigned binaryOps = opcode();
+	if (!llvm::isa<BinaryOperator>(StartPoint) || cast<BinaryOperator>(StartPoint)->getOpcode() != binaryOps) return false;
+	// Check Matched of Child Nodes
+	BinaryOperator *BO = cast<BinaryOperator>(StartPoint);
+	return left_->matchWithCode(BO->getOperand(reversed_ ? 1 : 0), AlreadyRemoved, IRVM, ORVM, TRVM) &&
+		   right_->matchWithCode(BO->getOperand(reversed_ ? 0 : 1), AlreadyRemoved, IRVM, ORVM, TRVM);
+}
+
+bool CCAPatternGraphCompareNode::matchWithCode(Value *StartPoint,
+											   const std::set<Instruction *> &AlreadyRemoved,
+											   std::map<unsigned int, Value *> &IRVM,
+											   std::map<unsigned int, Value *> &ORVM,
+											   std::map<unsigned int, Value *> &TRVM) const {
+	if (!llvm::isa<ICmpInst>(StartPoint) || cast<ICmpInst>(StartPoint)->getPredicate() != predicate()) return false;
+	// Check Matched of Child Nodes
+	ICmpInst *CI = cast<ICmpInst>(StartPoint);
+	return left_->matchWithCode(CI->getOperand(reversed_ ? 1 : 0), AlreadyRemoved, IRVM, ORVM, TRVM) &&
+		   right_->matchWithCode(CI->getOperand(reversed_ ? 0 : 1), AlreadyRemoved, IRVM, ORVM, TRVM);
+}
+
+bool CCAPatternGraphSelectNode::matchWithCode(Value *StartPoint,
+											  const std::set<Instruction *> &AlreadyRemoved,
+											  std::map<unsigned int, Value *> &IRVM,
+											  std::map<unsigned int, Value *> &ORVM,
+											  std::map<unsigned int, Value *> &TRVM) const {
+	if (!llvm::isa<SelectInst>(StartPoint)) return false;
+	// Check Matched of Child Nodes
+	SelectInst *SI = cast<SelectInst>(StartPoint);
+	return cmp_->matchWithCode(SI->getCondition(), AlreadyRemoved, IRVM, ORVM, TRVM) &&
+		   true_expr_->matchWithCode(SI->getTrueValue(), AlreadyRemoved, IRVM, ORVM, TRVM) &&
+		   false_expr_->matchWithCode(SI->getFalseValue(), AlreadyRemoved, IRVM, ORVM, TRVM);
 }
 
 // Get Remove List
-void CCAPatternGraphOperatorNode2::getRemoveList(Value *StartPoint, User *UserTarget, std::map<Value *, std::set<User *>> &RemoveList) const {
+void CCAPatternGraphRegisterNode::getRemoveList(Value *StartPoint, User *UserTarget, std::map<Value *, std::set<User *>> &RemoveList) {
+	if (SG_ != nullptr) SG_->getRemoveList(StartPoint, UserTarget, RemoveList);
+	if (regtype_ == 't' && UserTarget != nullptr) {
+		if (RemoveList.find(StartPoint) != RemoveList.end()) RemoveList.at(StartPoint).insert(UserTarget);
+		else
+			RemoveList.insert({StartPoint, {UserTarget}});
+	}
+}
+
+void CCAPatternGraphOperatorNode::getRemoveList(Value *StartPoint, User *UserTarget, std::map<Value *, std::set<User *>> &RemoveList) {
 	if (UserTarget != nullptr) {
 		if (RemoveList.find(StartPoint) != RemoveList.end()) RemoveList.at(StartPoint).insert(UserTarget);
 		else
@@ -261,46 +428,116 @@ void CCAPatternGraphOperatorNode2::getRemoveList(Value *StartPoint, User *UserTa
 	}
 	User *U = cast<User>(StartPoint);
 	left_->getRemoveList(U->getOperand(reversed_ ? 1 : 0), U, RemoveList);
-	right_->getRemoveList(U->getOperand(reversed_ ? 1 : 0), U, RemoveList);
+	right_->getRemoveList(U->getOperand(reversed_ ? 0 : 1), U, RemoveList);
 }
 
-void CCAPatternGraphRegisterNode2::getRemoveList(Value *StartPoint, User *UserTarget, std::map<Value *, std::set<User *>> &RemoveList) const {}
+void CCAPatternGraphCompareNode::getRemoveList(Value *StartPoint, User *UserTarget, std::map<Value *, std::set<User *>> &RemoveList) {
+	if (UserTarget != nullptr) {
+		if (RemoveList.find(StartPoint) != RemoveList.end()) RemoveList.at(StartPoint).insert(UserTarget);
+		else
+			RemoveList.insert({StartPoint, {UserTarget}});
+	}
+	User *U = cast<User>(StartPoint);
+	left_->getRemoveList(U->getOperand(reversed_ ? 1 : 0), U, RemoveList);
+	right_->getRemoveList(U->getOperand(reversed_ ? 0 : 1), U, RemoveList);
+}
+
+void CCAPatternGraphSelectNode::getRemoveList(Value *StartPoint, User *UserTarget, std::map<Value *, std::set<User *>> &RemoveList) {
+	if (UserTarget != nullptr) {
+		if (RemoveList.find(StartPoint) != RemoveList.end()) RemoveList.at(StartPoint).insert(UserTarget);
+		else
+			RemoveList.insert({StartPoint, {UserTarget}});
+	}
+	SelectInst *SI = cast<SelectInst>(StartPoint);
+	cmp_->getRemoveList(SI->getCondition(), SI, RemoveList);
+	true_expr_->getRemoveList(SI->getTrueValue(), SI, RemoveList);
+	false_expr_->getRemoveList(SI->getFalseValue(), SI, RemoveList);
+}
+
+//-------------------------------------------
+// Class: CCA Pattern Graph
+//-------------------------------------------
+// Constructor
+CCAPatternGraph::CCAPatternGraph(unsigned rule_number, const std::vector<CCAPatternSubGraph *> SubGraphs)
+	: rule_number_(rule_number), graphs_(SubGraphs), linked_graphs_(SubGraphs) {
+	for (auto iter = linked_graphs_.begin(); iter != linked_graphs_.end();) {
+		CCAPatternSubGraph *&SG = *iter;
+		bool merged = false;
+		for (auto it = linked_graphs_.begin(); it != linked_graphs_.end(); ++it) {
+			(*it)->readyForSearch();
+			merged = merged || (*it)->linkSubgraph(SG->regtype(), SG->regnum(), SG);
+		}
+		if (merged) iter = linked_graphs_.erase(iter);
+		else
+			++iter;
+	}
+	if (linked_graphs_.empty()) std::cerr << "[PIM-CCA-PASS][ERROR] There is circular linking of registers in the rule " << rule_number << '\n';
+	for (auto iter = linked_graphs_.begin(); iter != linked_graphs_.end(); ++iter) {
+		CCAPatternSubGraph *&SG = *iter;
+		if (SG->regtype() == 't') std::cerr << "[PIM-CCA-PASS][ERROR] The temporary register \"" << SG->regnum() << "\" are not used in the rule\n";
+	}
+	for (auto iter = linked_graphs_.begin(); iter != linked_graphs_.end(); ++iter) {
+		CCAPatternSubGraph *&SG = *iter;
+		SG->readyForSearch();
+		SG->checkValid();
+	}
+}
+
+// Print
+void CCAPatternGraph::print(unsigned int indent, std::ostream &os) const {
+	os << std::string(indent, ' ') << "pattern graph for cca " << rule_number_ << '\n';
+	for (auto &SG : linked_graphs_) SG->print(indent, os);
+}
+
+void CCAPatternGraph::print(unsigned int indent, llvm::raw_ostream &os) const {
+	os << std::string(indent, ' ') << "pattern graph for cca " << rule_number_ << '\n';
+	for (auto &SG : linked_graphs_) SG->print(indent, os);
+}
 
 // Match With Codes
-bool CCAPatternGraph2::matchWithCode(const std::vector<Instruction *> &Candidate,
-									 const std::set<Instruction *> &UnRemovable,
-									 std::set<Instruction *> &Removed,
-									 std::map<unsigned, Value *> &InputRegValueMap) const {
+bool CCAPatternGraph::matchWithCode(const std::vector<Instruction *> &Candidate,
+									const std::set<Instruction *> &UnRemovable,
+									std::set<Instruction *> &Removed,
+									std::map<unsigned, Value *> &InputRegValueMap,
+									std::map<unsigned, Value *> &OutputRegValueMap) const {
 	std::vector<unsigned> flagsize;
-	for (auto &G : graphs_) flagsize.push_back(G->flagsize());
+	for (auto &G : linked_graphs_) {
+		G->readyForSearch();
+		flagsize.push_back(G->flagsize());
+	}
 	unsigned flagend = std::accumulate(flagsize.begin(), flagsize.end(), 0);
 
+	for (Instruction *I : Candidate)
+		if (UnRemovable.find(I) != UnRemovable.end()) return false;
+
 	for (unsigned flag = 0; flag < (0x1 << flagend); ++flag) {
-		std::map<unsigned, Value *> IRVM;
+		std::map<unsigned, Value *> IRVM, ORVM(OutputRegValueMap), TRVM;
 		std::map<Value *, std::set<User *>> RL;
 
 		unsigned matched = true;
-		for (unsigned gidx = 0; gidx < graphs_.size(); ++gidx) {
-			CCAPatternGraphNode2 *G = graphs_[gidx];
+		for (unsigned gidx = 0; gidx < linked_graphs_.size(); ++gidx) {
+			CCAPatternSubGraph *G = linked_graphs_[gidx];
 			Instruction *StartPoint = Candidate[gidx];
 			// Set Reversed
 			std::vector<bool> reversed(flagsize[gidx], false);
 			unsigned partialflag = (flag >> std::accumulate(flagsize.begin(), flagsize.begin() + gidx, 0));
 			for (unsigned fidx = 0; fidx < flagsize[gidx]; ++fidx) reversed[fidx] = (partialflag & (0x1 << fidx)) ? true : false;
-			unsigned t = 0;
-			G->reverse(reversed, t);
-
+			unsigned index = 0;
+			G->readyForSearch();
+			G->setReverse(reversed, index);
 			// Match with Code
-			if (!G->matchWithCode(StartPoint, Removed, IRVM)) {
+			if (!G->matchWithCode(StartPoint, Removed, IRVM, ORVM, TRVM)) {
 				matched = false;
 				break;
 			}
 			// Get Remove List
+			G->readyForSearch();
 			G->getRemoveList(StartPoint, nullptr, RL);
 		}
 		if (!matched) continue;
-		// Check Remove Lists & Build
+		// Check Remove Lists
 		std::set<Instruction *> RIL;
+		BasicBlock *parent = nullptr;
 		for (auto &mapIter : RL) {
 			// if(!isa<Instruction>(mapIter.first)) /* error */
 			Instruction *I = cast<Instruction>(mapIter.first);
@@ -309,12 +546,31 @@ bool CCAPatternGraph2::matchWithCode(const std::vector<Instruction *> &Candidate
 				matched = false;
 				break;
 			}
+			// Check Instructions came from same Parent
+			if (parent == nullptr) parent = I->getParent();
+			else if (parent != I->getParent()) {
+				matched = false;
+				break;
+			}
 			// Check Users of Instructions to be Removed
 			for (auto UserIter : I->users()) {
 				if (mapIter.second.find(UserIter) != mapIter.second.end()) continue;
 				if (isa<StoreInst>(UserIter)) {
-					RIL.insert(cast<Instruction>(UserIter));
-					continue;
+					// Check Other Store Exists after This
+					StoreInst *S = cast<StoreInst>(UserIter);
+					bool removableStore = false;
+					for (auto SPIter = S->getIterator(); SPIter != parent->end(); ++SPIter) {
+						if (!isa<StoreInst>(SPIter)) continue;
+						StoreInst *S2 = cast<StoreInst>(SPIter);
+						if (S != S2 && S->getPointerOperand() == S2->getPointerOperand()) {
+							removableStore = true;
+							break;
+						}
+					}
+					if (removableStore) {
+						RIL.insert(cast<Instruction>(UserIter));
+						continue;
+					}
 				}
 				matched = false;
 				break;
@@ -322,8 +578,18 @@ bool CCAPatternGraph2::matchWithCode(const std::vector<Instruction *> &Candidate
 			RIL.insert(I);
 		}
 		if (!matched) continue;
+		// Check Output Registers
+		for (auto &mapIter : ORVM) {
+			Instruction *I = cast<Instruction>(mapIter.second);
+			if (UnRemovable.find(I) != UnRemovable.end()) {
+				matched = false;
+				break;
+			}
+		}
+		if (!matched) continue;
 		// Return
 		InputRegValueMap = IRVM;
+		OutputRegValueMap = ORVM;
 		Removed.insert(RIL.begin(), RIL.end());
 		return matched;
 	}

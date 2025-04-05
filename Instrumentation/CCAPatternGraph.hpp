@@ -1,6 +1,7 @@
 #ifndef PIMCCALLVMPASS_INSTRUMENTATION_CCA_PATTERN_GRAPH_HPP_
 #define PIMCCALLVMPASS_INSTRUMENTATION_CCA_PATTERN_GRAPH_HPP_
 
+#include "llvm/IR/InstrTypes.h"
 #include "llvm/IR/Instruction.h"
 #include "llvm/IR/Value.h"
 #include <map>
@@ -12,151 +13,306 @@
 namespace llvm {
 namespace cca {
 
-//-------------------------------------
-// Class: CCA Pattern Graph
-//-------------------------------------
+class CCAPatternGraphNode;
+class CCAPatternSubGraph;
+class CCAPatternGraphOperatorNode;
+class CCAPatternGraphRegisterNode;
+class CCAPatternGraphCompareNode;
+class CCAPatternGraphSelectNode;
+class CCAPatternGraph;
+
+//-------------------------------------------
+// Abstract Class: CCA Pattern Graph Node
+//-------------------------------------------
 class CCAPatternGraphNode {
-  protected:
-	CCAPatternGraphNode *left_, *right_;
+  public:
+	CCAPatternGraphNode() {}
+	virtual ~CCAPatternGraphNode() {}
+	virtual void print(unsigned int indent, std::ostream &os) const = 0;
+	virtual void print(unsigned int indent, llvm::raw_ostream &os) const = 0;
+	virtual unsigned opcode(void) const = 0;
+	virtual void readyForSearch(void) = 0;
+	virtual bool checkValid(void) = 0;
+	virtual bool linkSubgraph(char regtype, unsigned regnum, CCAPatternSubGraph *SG) = 0;
+	virtual unsigned flagsize(void) = 0;
+	virtual void setReverse(const std::vector<bool> &flags, unsigned &index) = 0;
+	virtual bool matchWithCode(Value *StartPoint,
+							   const std::set<Instruction *> &AlreadyRemoved,
+							   std::map<unsigned int, Value *> &IRVM,
+							   std::map<unsigned int, Value *> &ORVM,
+							   std::map<unsigned int, Value *> &TRVM) const = 0;
+	virtual void getRemoveList(Value *StartPoint, User *UserTarget, std::map<Value *, std::set<User *>> &RemoveList) = 0;
+};
+
+//-------------------------------------------
+// Class: CCA Pattern Graph Node
+//-------------------------------------------
+class CCAPatternSubGraph final : public CCAPatternGraphNode {
+  private:
+	bool searched_;
+	const char regtype_;
+	const unsigned int regnum_;
+	CCAPatternGraphNode *expr_;
 
   public:
-	CCAPatternGraphNode() : left_(nullptr), right_(nullptr) {}
-	CCAPatternGraphNode(CCAPatternGraphNode *left, CCAPatternGraphNode *right) : left_(left), right_(right) {}
-	virtual ~CCAPatternGraphNode() {
+	CCAPatternSubGraph(char regtype, unsigned regnum, CCAPatternGraphNode *expr)
+		: CCAPatternGraphNode(), searched_(false), regtype_(regtype), regnum_(regnum), expr_(expr) {}
+	CCAPatternSubGraph(std::string regstr, CCAPatternGraphNode *expr)
+		: CCAPatternGraphNode(), regtype_(regstr.at(0)), regnum_(std::atoi(regstr.substr(1, std::string::npos).c_str())), expr_(expr) {}
+	virtual ~CCAPatternSubGraph() {
+		if (expr_ != nullptr) delete expr_;
+		expr_ = nullptr;
+	}
+	virtual void print(unsigned indent, std::ostream &os) const;
+	virtual void print(unsigned indent, llvm::raw_ostream &os) const;
+
+	char regtype(void) const { return regtype_; }
+	unsigned regnum(void) const { return regnum_; }
+	virtual unsigned opcode(void) const {
+		if (expr_ != nullptr) return expr_->opcode();
+		return Instruction::OtherOpsEnd;
+	}
+	virtual void readyForSearch(void) {
+		searched_ = false;
+		if (expr_ != nullptr) expr_->readyForSearch();
+	}
+	virtual bool checkValid(void) {
+		if (searched_) return true;
+		searched_ = true;
+		if (expr_ != nullptr) return expr_->checkValid();
+		return false;
+	}
+	virtual bool linkSubgraph(char regtype, unsigned int regnum, CCAPatternSubGraph *SG) {
+		if (searched_) return false;
+		searched_ = true;
+		if (expr_ != nullptr) return expr_->linkSubgraph(regtype, regnum, SG);
+		return false;
+	}
+	virtual unsigned flagsize(void) {
+		if (searched_) return 0;
+		searched_ = true;
+		if (expr_ != nullptr) return expr_->flagsize();
+		return 0;
+	}
+	virtual void setReverse(const std::vector<bool> &flags, unsigned &index) {
+		if (searched_) return;
+		searched_ = true;
+		if (expr_ != nullptr) expr_->setReverse(flags, index);
+	}
+	virtual bool matchWithCode(Value *StartPoint,
+							   const std::set<Instruction *> &AlreadyRemoved,
+							   std::map<unsigned int, Value *> &IRVM,
+							   std::map<unsigned int, Value *> &ORVM,
+							   std::map<unsigned int, Value *> &TRVM) const {
+		if (expr_ != nullptr) return expr_->matchWithCode(StartPoint, AlreadyRemoved, IRVM, ORVM, TRVM);
+		return false;
+	}
+	virtual void getRemoveList(Value *StartPoint, User *UserTarget, std::map<Value *, std::set<User *>> &RemoveList) {
+		if (searched_) return;
+		searched_ = true;
+		if (expr_ != nullptr) expr_->getRemoveList(StartPoint, nullptr, RemoveList);
+	}
+};
+
+class CCAPatternGraphRegisterNode final : public CCAPatternGraphNode {
+  private:
+	const char regtype_;
+	const unsigned int regnum_;
+	CCAPatternSubGraph *SG_;
+
+  public:
+	CCAPatternGraphRegisterNode(std::string regstr)
+		: CCAPatternGraphNode(), regtype_(regstr.at(0)), regnum_(std::atoi(regstr.substr(1, std::string::npos).c_str())), SG_(nullptr) {}
+	virtual ~CCAPatternGraphRegisterNode() { SG_ = nullptr; }
+	virtual void print(unsigned int indent, std::ostream &os) const;
+	virtual void print(unsigned int indent, llvm::raw_ostream &os) const;
+	virtual unsigned opcode(void) const { return Instruction::OtherOpsEnd; }
+
+	char regtype(void) const { return regtype_; }
+	unsigned regnum(void) const { return regnum_; }
+
+	virtual void readyForSearch(void);
+	virtual bool checkValid(void);
+	virtual bool linkSubgraph(char regtype, unsigned regnum, CCAPatternSubGraph *SG);
+	virtual unsigned flagsize(void);
+	virtual void setReverse(const std::vector<bool> &flags, unsigned &index);
+	virtual bool matchWithCode(Value *StartPoint,
+							   const std::set<Instruction *> &AlreadyRemoved,
+							   std::map<unsigned, Value *> &IRVM,
+							   std::map<unsigned, Value *> &ORVM,
+							   std::map<unsigned, Value *> &TRVM) const;
+	virtual void getRemoveList(Value *StartPoint, User *UserTarget, std::map<Value *, std::set<User *>> &RemoveList);
+};
+
+class CCAPatternGraphOperatorNode final : public CCAPatternGraphNode {
+  private:
+	CCAPatternGraphNode *left_;
+	CCAPatternGraphNode *right_;
+	bool reversed_;
+	std::string op_;
+
+  public:
+	CCAPatternGraphOperatorNode(std::string op, CCAPatternGraphNode *left, CCAPatternGraphNode *right)
+		: CCAPatternGraphNode(), left_(left), right_(right), reversed_(false), op_(op) {}
+	virtual ~CCAPatternGraphOperatorNode() {
 		if (left_ != nullptr) delete left_;
 		left_ = nullptr;
 		if (right_ != nullptr) delete right_;
 		right_ = nullptr;
 	}
-	virtual void print(unsigned int indent, std::ostream &os) const = 0;
-	virtual bool matchWithCode(Value *StartPoint,
-							   std::set<Instruction *> &Removed,
-							   const std::set<Instruction *> &Replaced,
-							   std::map<unsigned int, Value *> &InputRegValueMap) const = 0;
-};
-
-class CCAPatternGraphOperatorNode final : public CCAPatternGraphNode {
-  private:
-	char opchar_;
-
-  public:
-	CCAPatternGraphOperatorNode(char opchar, CCAPatternGraphNode *left, CCAPatternGraphNode *right)
-		: CCAPatternGraphNode(left, right), opchar_(opchar) {}
-	virtual ~CCAPatternGraphOperatorNode() {}
 	virtual void print(unsigned int indent, std::ostream &os) const;
-	virtual bool matchWithCode(Value *StartPoint,
-							   std::set<Instruction *> &Removed,
-							   const std::set<Instruction *> &Replaced,
-							   std::map<unsigned, Value *> &InputRegValueMap) const;
-};
+	virtual void print(unsigned int indent, llvm::raw_ostream &os) const;
 
-class CCAPatternGraphRegisterNode final : public CCAPatternGraphNode {
-  private:
-	char regtype_;
-	unsigned int regnum_;
+	std::string opstr(void) const { return op_; }
+	bool reversable(void) const { return op_ == "+" || op_ == "*"; }
 
-  public:
-	CCAPatternGraphRegisterNode(std::string regstr)
-		: CCAPatternGraphNode(), regtype_(regstr.at(0)), regnum_(std::atoi(regstr.substr(1, std::string::npos).c_str())) {}
-	virtual ~CCAPatternGraphRegisterNode() {}
-	virtual void print(unsigned int indent, std::ostream &os) const;
-	virtual bool matchWithCode(Value *StartPoint,
-							   std::set<Instruction *> &Removed,
-							   const std::set<Instruction *> &Replaced,
-							   std::map<unsigned, Value *> &InputRegValueMap) const;
-};
-
-typedef CCAPatternGraphNode CCAPatternGraph;
-
-//-------------------------------------
-// Class: CCA Pattern Graph 2
-//-------------------------------------
-class CCAPatternGraphNode2 {
-  protected:
-	CCAPatternGraphNode2 *left_, *right_;
-
-  public:
-	CCAPatternGraphNode2() : left_(nullptr), right_(nullptr) {}
-	CCAPatternGraphNode2(CCAPatternGraphNode2 *left, CCAPatternGraphNode2 *right) : left_(left), right_(right) {}
-	virtual ~CCAPatternGraphNode2() {
-		if (left_ != nullptr) delete left_;
-		if (right_ != nullptr) delete right_;
+	virtual unsigned opcode(void) const {
+		if (op_ == "+") return Instruction::Add;
+		else if (op_ == "-")
+			return Instruction::Sub;
+		else if (op_ == "*")
+			return Instruction::Mul;
+		else if (op_ == "/")
+			return Instruction::UDiv;
+		else
+			return Instruction::OtherOpsEnd;
 	}
-	virtual Instruction::BinaryOps getBOS(void) const { return Instruction::BinaryOpsEnd; }
-	virtual void print(unsigned int indent, std::ostream &os) const = 0;
-	virtual unsigned flagsize(void) const { return 0; }
-	virtual void reverse(const std::vector<bool> &flags, unsigned &index) {}
+	virtual void readyForSearch(void);
+	virtual bool checkValid(void);
+	virtual bool linkSubgraph(char regtype, unsigned regnum, CCAPatternSubGraph *SG);
+	virtual unsigned flagsize(void);
+	virtual void setReverse(const std::vector<bool> &flags, unsigned &index);
 	virtual bool matchWithCode(Value *StartPoint,
 							   const std::set<Instruction *> &AlreadyRemoved,
-							   std::map<unsigned int, Value *> &InputRegValueMap) const = 0;
-	virtual void getRemoveList(Value *StartPoint, User *UserTarget, std::map<Value *, std::set<User *>> &RemoveList) const = 0;
+							   std::map<unsigned, Value *> &IRVM,
+							   std::map<unsigned, Value *> &ORVM,
+							   std::map<unsigned, Value *> &TRVM) const;
+	virtual void getRemoveList(Value *StartPoint, User *UserTarget, std::map<Value *, std::set<User *>> &RemoveList);
 };
 
-class CCAPatternGraphOperatorNode2 final : public CCAPatternGraphNode2 {
+class CCAPatternGraphCompareNode final : public CCAPatternGraphNode {
   private:
+	CCAPatternGraphNode *left_;
+	CCAPatternGraphNode *right_;
 	bool reversed_;
-	char opchar_;
+	std::string op_;
 
   public:
-	CCAPatternGraphOperatorNode2(char opchar, CCAPatternGraphNode2 *left, CCAPatternGraphNode2 *right)
-		: CCAPatternGraphNode2(left, right), reversed_(false), opchar_(opchar) {}
-	virtual ~CCAPatternGraphOperatorNode2() {}
-	virtual Instruction::BinaryOps getBOS(void) const {
-		switch (opchar_) {
-		case '+': return Instruction::Add; break;
-		case '-': return Instruction::Sub; break;
-		case '*': return Instruction::Mul; break;
-		case '/': return Instruction::UDiv; break;
-		default: return Instruction::BinaryOpsEnd;
+	CCAPatternGraphCompareNode(std::string op, CCAPatternGraphNode *left, CCAPatternGraphNode *right)
+		: CCAPatternGraphNode(), left_(left), right_(right), reversed_(false), op_(op) {}
+	virtual ~CCAPatternGraphCompareNode() {
+		if (left_ != nullptr) delete left_;
+		left_ = nullptr;
+		if (right_ != nullptr) delete right_;
+		right_ = nullptr;
+	}
+	virtual void print(unsigned int indent, std::ostream &os) const;
+	virtual void print(unsigned int indent, llvm::raw_ostream &os) const;
+	virtual unsigned opcode(void) const { return Instruction::ICmp; }
+
+	std::string opstr(void) const { return op_; }
+	CmpInst::Predicate predicate(void) const {
+		if (op_ == "==") return CmpInst::Predicate::ICMP_EQ;
+		else if (op_ == "!=")
+			return CmpInst::Predicate::ICMP_NE;
+		else if (op_ == "<")
+			return CmpInst::Predicate::ICMP_SLT;
+		else if (op_ == "<=")
+			return CmpInst::Predicate::ICMP_SLE;
+		else if (op_ == ">")
+			return CmpInst::Predicate::ICMP_SGT;
+		else if (op_ == ">=")
+			return CmpInst::Predicate::ICMP_SGE;
+		return CmpInst::Predicate::BAD_ICMP_PREDICATE;
+	}
+	bool reversable(void) const { return op_ == "==" || op_ == "!="; }
+
+	virtual void readyForSearch(void);
+	virtual bool checkValid(void);
+	virtual bool linkSubgraph(char regtype, unsigned int regnum, CCAPatternSubGraph *SG);
+	virtual unsigned flagsize(void);
+	virtual void setReverse(const std::vector<bool> &flags, unsigned &index);
+	virtual bool matchWithCode(Value *StartPoint,
+							   const std::set<Instruction *> &AlreadyRemoved,
+							   std::map<unsigned int, Value *> &IRVM,
+							   std::map<unsigned int, Value *> &ORVM,
+							   std::map<unsigned int, Value *> &TRVM) const;
+	virtual void getRemoveList(Value *StartPoint, User *UserTarget, std::map<Value *, std::set<User *>> &RemoveList);
+};
+
+class CCAPatternGraphSelectNode final : public CCAPatternGraphNode {
+  private:
+	CCAPatternGraphCompareNode *cmp_;
+	CCAPatternGraphNode *true_expr_;
+	CCAPatternGraphNode *false_expr_;
+
+  public:
+	CCAPatternGraphSelectNode(CCAPatternGraphCompareNode *cmp, CCAPatternGraphNode *true_expr, CCAPatternGraphNode *false_expr)
+		: CCAPatternGraphNode(), cmp_(cmp), true_expr_(true_expr), false_expr_(false_expr) {}
+	virtual ~CCAPatternGraphSelectNode() {
+		if (cmp_ != nullptr) delete cmp_;
+		cmp_ = nullptr;
+		if (true_expr_ != nullptr) delete true_expr_;
+		true_expr_ = nullptr;
+		if (false_expr_ != nullptr) delete false_expr_;
+		false_expr_ = nullptr;
+	}
+	virtual void print(unsigned int indent, std::ostream &os) const;
+	virtual void print(unsigned int indent, llvm::raw_ostream &os) const;
+	virtual unsigned opcode(void) const { return Instruction::Select; }
+
+	virtual void readyForSearch(void);
+	virtual bool checkValid(void);
+	virtual bool linkSubgraph(char regtype, unsigned int regnum, CCAPatternSubGraph *SG);
+	virtual unsigned flagsize(void);
+	virtual void setReverse(const std::vector<bool> &flags, unsigned &index);
+	virtual bool matchWithCode(Value *StartPoint,
+							   const std::set<Instruction *> &AlreadyRemoved,
+							   std::map<unsigned int, Value *> &IRVM,
+							   std::map<unsigned int, Value *> &ORVM,
+							   std::map<unsigned int, Value *> &TRVM) const;
+	virtual void getRemoveList(Value *StartPoint, User *UserTarget, std::map<Value *, std::set<User *>> &RemoveList);
+};
+
+//-------------------------------------------
+// Class: CCA Pattern Graph
+//-------------------------------------------
+
+class CCAPatternGraph final {
+  private:
+	const unsigned rule_number_;
+	std::vector<CCAPatternSubGraph *> graphs_;
+	std::vector<CCAPatternSubGraph *> linked_graphs_;
+
+  public:
+	CCAPatternGraph(unsigned rule_number, const std::vector<CCAPatternSubGraph *> SubGraphs);
+	~CCAPatternGraph() {
+		for (auto &G : graphs_) {
+			delete G;
+			G = nullptr;
 		}
-	}
-	virtual void print(unsigned int indent, std::ostream &os) const;
-	virtual unsigned flagsize(void) const;
-	virtual void reverse(const std::vector<bool> &flags, unsigned &index);
-	virtual bool matchWithCode(Value *StartPoint, const std::set<Instruction *> &AlreadyRemoved, std::map<unsigned, Value *> &InputRegValueMap) const;
-	virtual void getRemoveList(Value *StartPoint, User *UserTarget, std::map<Value *, std::set<User *>> &RemoveList) const;
-};
-
-class CCAPatternGraphRegisterNode2 final : public CCAPatternGraphNode2 {
-  private:
-	char regtype_;
-	unsigned int regnum_;
-
-  public:
-	CCAPatternGraphRegisterNode2(std::string regstr)
-		: CCAPatternGraphNode2(), regtype_(regstr.at(0)), regnum_(std::atoi(regstr.substr(1, std::string::npos).c_str())) {}
-	virtual ~CCAPatternGraphRegisterNode2() {}
-	virtual void print(unsigned int indent, std::ostream &os) const;
-	virtual bool matchWithCode(Value *StartPoint, const std::set<Instruction *> &AlreadyRemoved, std::map<unsigned, Value *> &InputRegValueMap) const;
-	virtual void getRemoveList(Value *StartPoint, User *UserTarget, std::map<Value *, std::set<User *>> &RemoveList) const;
-};
-
-class CCAPatternGraph2 final {
-  private:
-	std::vector<CCAPatternGraphNode2 *> graphs_;
-
-  public:
-	CCAPatternGraph2() : graphs_(){};
-	~CCAPatternGraph2() {
-		for (auto &G : graphs_) delete G;
 		graphs_.clear();
+		linked_graphs_.clear();
 	}
-	void setGraph(const std::vector<CCAPatternGraphNode2 *> &graphs) { graphs_ = graphs; }
-	std::vector<Instruction::BinaryOps> getBOS(void) const {
-		std::vector<Instruction::BinaryOps> retval;
-		for (auto &G : graphs_) retval.push_back(G->getBOS());
+	std::vector<unsigned> opcode(void) const {
+		std::vector<unsigned> retval;
+		for (auto &SG : linked_graphs_) retval.push_back(SG->opcode());
 		return retval;
 	}
-	void print(unsigned int indent, unsigned int graphidx, std::ostream &os) const;
+	std::vector<std::pair<char, unsigned int>> output_reginfo(void) const {
+		std::vector<std::pair<char, unsigned int>> retval;
+		for (const auto &SG : linked_graphs_) retval.push_back(std::pair<char, unsigned int>(SG->regtype(), SG->regnum()));
+		return retval;
+	}
+	unsigned rule_number(void) const { return rule_number_; }
+	void print(unsigned int indent, std::ostream &os) const;
+	void print(unsigned int indent, llvm::raw_ostream &os) const;
 	bool matchWithCode(const std::vector<Instruction *> &Candidate,
 					   const std::set<Instruction *> &UnRemovable,
 					   std::set<Instruction *> &Removed,
-					   std::map<unsigned, Value *> &InputRegValueMap) const;
+					   std::map<unsigned, Value *> &InputRegValueMap,
+					   std::map<unsigned, Value *> &OutputRegValueMap) const;
 };
-
-// Build Graph from Pattern String
-CCAPatternGraph *BuildGraph(const std::vector<std::string> &patternTokVec);
-CCAPatternGraphNode2 *BuildGraph2(const std::vector<std::string> &patternTokVec);
 
 } // namespace cca
 } // namespace llvm
