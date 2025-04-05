@@ -64,7 +64,7 @@ void CCAPattern::build(unsigned int ccaid, LLVMContext &Context) {
 	// Prepare CCA Inline Assembly
 	unsigned CCAInputMoveLength = InputRegValueMap_.size();
 	FunctionType *CCAInputMoveInstFT = FunctionType::get(VoidTy, std::vector<Type *>(CCAInputMoveLength, Int32Ty), false);
-	std::string CCAInputMoveAsmStr = "#removethiscomment cca_movein $0";
+	std::string CCAInputMoveAsmStr = "#removethiscomment cca_move $0";
 	std::string CCAInputMoveConstraints = "r";
 	for (unsigned i = 1; i < CCAInputMoveLength; ++i) {
 		CCAInputMoveAsmStr += (", $" + std::to_string(i));
@@ -75,6 +75,7 @@ void CCAPattern::build(unsigned int ccaid, LLVMContext &Context) {
 	FunctionType *CCAInstFT = FunctionType::get(VoidTy, false);
 	InlineAsm *CCAInstIA = InlineAsm::get(CCAInstFT, "#removethiscomment cca " + std::to_string(ccaid), "", true);
 
+#if 0
 	unsigned CCAOutputMoveLength = OutputRegValueMap_.size();
 	FunctionType *CCAOutputMoveInstFT = FunctionType::get(
 		CCAOutputMoveLength == 1 ? Int32Ty : StructType::get(Context, std::vector<Type *>(CCAOutputMoveLength, Int32Ty)), VoidTy, false);
@@ -85,6 +86,12 @@ void CCAPattern::build(unsigned int ccaid, LLVMContext &Context) {
 		CCAOutputMoveConstraints += ",=r";
 	}
 	InlineAsm *CCAOutputMoveIA = InlineAsm::get(CCAOutputMoveInstFT, CCAOutputMoveAsmStr, CCAOutputMoveConstraints, true);
+#else
+	FunctionType *CCAOutputMoveInstFT = FunctionType::get(Int32Ty, VoidTy, false);
+	std::string CCAOutputMoveAsmStr = "#removethiscomment move $0 r" + std::to_string(OutputRegValueMap_.begin()->first);
+	std::string CCAOutputMoveConstraints = "=r";
+	InlineAsm *CCAOutputMoveIA = InlineAsm::get(CCAOutputMoveInstFT, CCAOutputMoveAsmStr, CCAOutputMoveConstraints, true);
+#endif
 
 	// Build Instructions
 	// Move Input Value to Register
@@ -100,6 +107,7 @@ void CCAPattern::build(unsigned int ccaid, LLVMContext &Context) {
 	CallInst *CCAOutputMoveInst = CallInst::Create(FunctionCallee(CCAOutputMoveInstFT, CCAOutputMoveIA), "ccamoveout");
 	CCAOutputMoveInst->setTailCall(false);
 	CCAOutputMoveInstVec.push_back(CCAOutputMoveInst);
+#if 0
 	if (CCAOutputMoveLength == 1) CCAOutputInst_.push_back(CCAOutputMoveInst);
 	else {
 		for (unsigned i = 0; i < CCAOutputMoveLength; ++i) {
@@ -108,6 +116,9 @@ void CCAPattern::build(unsigned int ccaid, LLVMContext &Context) {
 			CCAOutputInst_.push_back(I);
 		}
 	}
+#else
+	CCAOutputInst_.push_back(CCAOutputMoveInst);
+#endif
 
 	// Insert Instructions & Replace All Uses
 	Instruction *InsertPosFromUse = nullptr, *InsertPos = nullptr;
