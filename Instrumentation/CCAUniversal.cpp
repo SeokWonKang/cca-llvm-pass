@@ -86,11 +86,27 @@ void CCAPattern::build(unsigned int ccaid, LLVMContext &Context) {
 		CCAOutputMoveConstraints += ",=r";
 	}
 	InlineAsm *CCAOutputMoveIA = InlineAsm::get(CCAOutputMoveInstFT, CCAOutputMoveAsmStr, CCAOutputMoveConstraints, true);
-#else
+#elif 0
 	FunctionType *CCAOutputMoveInstFT = FunctionType::get(Int32Ty, VoidTy, false);
 	std::string CCAOutputMoveAsmStr = "#removethiscomment move $0, r" + std::to_string(OutputRegValueMap_.begin()->first);
 	std::string CCAOutputMoveConstraints = "=r";
 	InlineAsm *CCAOutputMoveIA = InlineAsm::get(CCAOutputMoveInstFT, CCAOutputMoveAsmStr, CCAOutputMoveConstraints, true);
+#else
+	unsigned CCAOutputMoveLength = OutputRegValueMap_.size();
+	FunctionType *CCAOutputMoveInstFT = nullptr;
+	InlineAsm *CCAOutputMoveIA = nullptr;
+	if (CCAOutputMoveLength == 1) {
+		CCAOutputMoveInstFT = FunctionType::get(Int32Ty, VoidTy, false);
+		std::string CCAOutputMoveAsmStr = "#removethiscomment move $0, r" + std::to_string(OutputRegValueMap_.begin()->first);
+		std::string CCAOutputMoveConstraints = "=r";
+		CCAOutputMoveIA = InlineAsm::get(CCAOutputMoveInstFT, CCAOutputMoveAsmStr, CCAOutputMoveConstraints, true);
+	} else if (CCAOutputMoveLength == 4) {
+		CCAOutputMoveInstFT = FunctionType::get(StructType::get(Context, std::vector<Type *>(CCAOutputMoveLength, Int32Ty)), VoidTy, false);
+		CCAOutputMoveIA = InlineAsm::get(CCAOutputMoveInstFT, "#removethiscomment cca_move $0, $1, $2, $3", "=r,=r,=r,=r", true);
+	} else {
+		std::cerr << "[PIM-CCA-PASS][ERROR] cca pass only surrport #output_register = 1 or 4 in current version\n";
+		return;
+	}
 #endif
 
 	// Build Instructions
@@ -116,8 +132,17 @@ void CCAPattern::build(unsigned int ccaid, LLVMContext &Context) {
 			CCAOutputInst_.push_back(I);
 		}
 	}
-#else
+#elif 0
 	CCAOutputInst_.push_back(CCAOutputMoveInst);
+#else
+	if (CCAOutputMoveLength == 1) CCAOutputInst_.push_back(CCAOutputMoveInst);
+	else {
+		for (unsigned i = 0; i < CCAOutputMoveLength; ++i) {
+			Instruction *I = ExtractValueInst::Create(CCAOutputMoveInst, {i}, "extractccaout");
+			CCAOutputMoveInstVec.push_back(I);
+			CCAOutputInst_.push_back(I);
+		}
+	}
 #endif
 
 	// Insert Instructions & Replace All Uses
@@ -308,7 +333,7 @@ CCAUniversalPass::CCAUniversalPass(std::string patternStr) : patternStr_(pattern
 	*/
 	G_ = parser::parsePatternStr(patternStr);
 	// Verbose
-	outs() << "[PIM-CCA-PASS] Build Pattern Graph using\"" << patternStr << "\"\n";
+	outs() << "[PIM-CCA-PASS] Build Pattern Graph using \"" << patternStr << "\"\n";
 	G_->print(2, outs());
 }
 
