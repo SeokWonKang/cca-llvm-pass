@@ -88,7 +88,7 @@ void CCAPattern::build(unsigned int ccaid, LLVMContext &Context) {
 	InlineAsm *CCAOutputMoveIA = InlineAsm::get(CCAOutputMoveInstFT, CCAOutputMoveAsmStr, CCAOutputMoveConstraints, true);
 #else
 	FunctionType *CCAOutputMoveInstFT = FunctionType::get(Int32Ty, VoidTy, false);
-	std::string CCAOutputMoveAsmStr = "#removethiscomment move $0 r" + std::to_string(OutputRegValueMap_.begin()->first);
+	std::string CCAOutputMoveAsmStr = "#removethiscomment move $0, r" + std::to_string(OutputRegValueMap_.begin()->first);
 	std::string CCAOutputMoveConstraints = "=r";
 	InlineAsm *CCAOutputMoveIA = InlineAsm::get(CCAOutputMoveInstFT, CCAOutputMoveAsmStr, CCAOutputMoveConstraints, true);
 #endif
