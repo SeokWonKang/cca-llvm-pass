@@ -9,10 +9,20 @@ add_library( PIMCCALLVMInstrumentation MODULE
 	# Fixed/CCAMulSubMulDiv.cpp
 	CCAPatternGraph.cpp
 	parser/cca.tab.cc
-	parser/lex.yy.cc
+	parser/cca.lex.cc
 	CCAUniversal.cpp
 	PassPlugin.cpp )
 target_include_directories( PIMCCALLVMInstrumentation PUBLIC
+	$<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}>
+	$<INSTALL_INTERFACE:include> )
+
+add_executable( parserTester 
+	parser/tester.cpp
+	CCAPatternGraph.cpp
+	parser/cca.tab.cc
+	parser/cca.lex.cc
+	Utils.cpp )
+target_include_directories( parserTester PUBLIC
 	$<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}>
 	$<INSTALL_INTERFACE:include> )
 

@@ -1,11 +1,10 @@
-#include <iostream>
 #include "cca.tab.hpp"
 
 namespace llvm {
 namespace cca {
 namespace parser {
 
-#include "cca.tab.c"
+#include "lex.yy.c"
 
 }
 } // namespace cca

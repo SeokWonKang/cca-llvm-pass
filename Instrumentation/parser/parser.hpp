@@ -4,10 +4,10 @@
 #include "Instrumentation/CCAPatternGraph.hpp"
 #include <string>
 #include <vector>
-#ifndef FLEX_LEXER
-	#define FLEX_LEXER
-	#include <FlexLexer.h>
-#endif
+// #ifndef FLEX_LEXER
+//     #define FLEX_LEXER
+//     #include <FlexLexer.h>
+// #endif
 
 namespace llvm {
 namespace cca {
@@ -31,6 +31,8 @@ struct Token {
 	operator int() const { return type_; }
 };
 
+Token getToken(void);
+
 // YYSTYPE
 struct _YYSTYPE {
 	llvm::cca::parser::Token tok;
@@ -42,7 +44,11 @@ struct _YYSTYPE {
 typedef struct _YYSTYPE YYSTYPE;
 #define YYSTYPE_IS_DECLARED 1
 
+// yylex (Scanner)
+int yylex(void);
+
 // Scanner
+/*
 class Scanner : public yyFlexLexer {
   public:
 	Scanner(std::istream &is, std::ostream &os) : yyFlexLexer(is, os) {}
@@ -53,6 +59,7 @@ void setPatternStr(std::string patternStr);
 int yylex(void);
 int yyerror(const char *s);
 Token lastTok(void);
+*/
 
 }; // namespace parser
 }; // namespace cca

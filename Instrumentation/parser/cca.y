@@ -1,9 +1,8 @@
 %{
-#include "Instrumentation/CCAPatternGraph.hpp"
-#include "parser.hpp"
-#include <vector>
 
 static CCAPatternGraph* _G = nullptr;
+static int yyerror(const char* s);
+
 %}
 
 %token REGISTER NUMBER ERROR
@@ -61,10 +60,16 @@ int yyerror(const char* s) {
 	return 0; 
 }
 
+typedef struct yy_buffer_state * YY_BUFFER_STATE;
+extern YY_BUFFER_STATE yy_scan_string(const char * str);
+extern void yy_delete_buffer(YY_BUFFER_STATE buffer);
 // External Interfaces
 CCAPatternGraph *parsePatternStr(std::string patternStr) {
-	setPatternStr(patternStr);
+	YY_BUFFER_STATE buffer = yy_scan_string(patternStr.c_str());
+	// setPatternStr(patternStr);
 	_G = nullptr;
 	yyparse();
+	yy_delete_buffer(buffer);
 	return _G;
 }
+
