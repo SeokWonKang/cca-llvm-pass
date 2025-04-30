@@ -42,6 +42,7 @@ class CCAPatternGraphNode {
 							   std::map<unsigned int, Value *> &ORVM,
 							   std::map<unsigned int, Value *> &TRVM) const = 0;
 	virtual void getRemoveList(Value *StartPoint, User *UserTarget, std::map<Value *, std::set<User *>> &RemoveList) = 0;
+	virtual std::string writeInVerilog(std::vector<std::string> &front, std::vector<std::string> &last) = 0;
 };
 
 //-------------------------------------------
@@ -112,6 +113,15 @@ class CCAPatternSubGraph final : public CCAPatternGraphNode {
 		searched_ = true;
 		if (expr_ != nullptr) expr_->getRemoveList(StartPoint, nullptr, RemoveList);
 	}
+	virtual std::string writeInVerilog(std::vector<std::string> &front, std::vector<std::string> &last) {
+		std::string regstr = std::string(1, regtype_) + std::to_string(regnum_);
+		if (searched_) return regstr;
+		searched_ = true;
+		front.push_back("reg [0:64] " + regstr + "\n");
+		front.push_back(regstr + " <= " + expr_->writeInVerilog(front, last) + "\n");
+		if (regtype_ == 'o') last.push_back("assign r" + std::to_string(regnum_) + "_out = " + regstr + "\n");
+		return regstr;
+	}
 };
 
 class CCAPatternGraphRegisterNode final : public CCAPatternGraphNode {
@@ -142,6 +152,13 @@ class CCAPatternGraphRegisterNode final : public CCAPatternGraphNode {
 							   std::map<unsigned, Value *> &ORVM,
 							   std::map<unsigned, Value *> &TRVM) const;
 	virtual void getRemoveList(Value *StartPoint, User *UserTarget, std::map<Value *, std::set<User *>> &RemoveList);
+	virtual std::string writeInVerilog(std::vector<std::string> &front, std::vector<std::string> &last) {
+		std::string regstr = std::string(1, regtype_) + std::to_string(regnum_);
+		if(regtype_ == 'i') regstr = "r" + std::to_string(regnum_) + "_in";
+		if (SG_ == nullptr) return regstr;
+		else
+			return SG_->writeInVerilog(front, last);
+	}
 };
 
 class CCAPatternGraphOperatorNode final : public CCAPatternGraphNode {
@@ -188,6 +205,9 @@ class CCAPatternGraphOperatorNode final : public CCAPatternGraphNode {
 							   std::map<unsigned, Value *> &ORVM,
 							   std::map<unsigned, Value *> &TRVM) const;
 	virtual void getRemoveList(Value *StartPoint, User *UserTarget, std::map<Value *, std::set<User *>> &RemoveList);
+	virtual std::string writeInVerilog(std::vector<std::string> &front, std::vector<std::string> &last) {
+		return "(" + left_->writeInVerilog(front, last) + op_ + right_->writeInVerilog(front, last) + ")";
+	}
 };
 
 class CCAPatternGraphCompareNode final : public CCAPatternGraphNode {
@@ -238,6 +258,9 @@ class CCAPatternGraphCompareNode final : public CCAPatternGraphNode {
 							   std::map<unsigned int, Value *> &ORVM,
 							   std::map<unsigned int, Value *> &TRVM) const;
 	virtual void getRemoveList(Value *StartPoint, User *UserTarget, std::map<Value *, std::set<User *>> &RemoveList);
+	virtual std::string writeInVerilog(std::vector<std::string> &front, std::vector<std::string> &last) {
+		return "(" + left_->writeInVerilog(front, last) + op_ + right_->writeInVerilog(front, last) + ")";
+	}
 };
 
 class CCAPatternGraphSelectNode final : public CCAPatternGraphNode {
@@ -272,6 +295,11 @@ class CCAPatternGraphSelectNode final : public CCAPatternGraphNode {
 							   std::map<unsigned int, Value *> &ORVM,
 							   std::map<unsigned int, Value *> &TRVM) const;
 	virtual void getRemoveList(Value *StartPoint, User *UserTarget, std::map<Value *, std::set<User *>> &RemoveList);
+
+	virtual std::string writeInVerilog(std::vector<std::string> &front, std::vector<std::string> &last) {
+		return "(" + cmp_->writeInVerilog(front, last) + " ? " + true_expr_->writeInVerilog(front, last) + " : " +
+			   false_expr_->writeInVerilog(front, last) + ")";
+	}
 };
 
 //-------------------------------------------
@@ -312,6 +340,7 @@ class CCAPatternGraph final {
 					   std::set<Instruction *> &Removed,
 					   std::map<unsigned, Value *> &InputRegValueMap,
 					   std::map<unsigned, Value *> &OutputRegValueMap) const;
+	std::string writeInVerilog(void) const;
 };
 
 } // namespace cca

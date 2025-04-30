@@ -596,5 +596,43 @@ bool CCAPatternGraph::matchWithCode(const std::vector<Instruction *> &Candidate,
 	return false;
 }
 
+std::string CCAPatternGraph::writeInVerilog(void) const {
+	std::string outstr = "";
+	outstr += "module shift_add_accum (clk, rst, start, done, imm_in, r24_in, r25_in, r26_in, r27_in, r28_in, r29_in, r30_in, imm_out, r24_out, "
+			  "r25_out, r26_out, r27_out, r28_out, r29_out, r30_out);\n";
+	outstr += std::string(2, ' ') + "input clk;\n";
+	outstr += std::string(2, ' ') + "input rst;\n";
+	outstr += std::string(2, ' ') + "input start;\n";
+	outstr += std::string(2, ' ') + "output done;\n";
+
+	outstr += std::string(2, ' ') + "input [63:0] imm_in;\n";
+	outstr += std::string(2, ' ') + "input [63:0] r24_in;\n";
+	outstr += std::string(2, ' ') + "input [63:0] r25_in;\n";
+	outstr += std::string(2, ' ') + "input [63:0] r26_in;\n";
+	outstr += std::string(2, ' ') + "input [63:0] r27_in;\n";
+	outstr += std::string(2, ' ') + "input [63:0] r28_in;\n";
+	outstr += std::string(2, ' ') + "input [63:0] r29_in;\n";
+	outstr += std::string(2, ' ') + "input [63:0] r30_in;\n";
+
+	outstr += std::string(2, ' ') + "output [63:0] r24_out;\n";
+	outstr += std::string(2, ' ') + "output [63:0] r25_out;\n";
+	outstr += std::string(2, ' ') + "output [63:0] r26_out;\n";
+	outstr += std::string(2, ' ') + "output [63:0] r27_out;\n";
+	outstr += std::string(2, ' ') + "output [63:0] r28_out;\n";
+	outstr += std::string(2, ' ') + "output [63:0] r29_out;\n";
+	outstr += std::string(2, ' ') + "output [63:0] r30_out;\n";
+
+	outstr += std::string(2, ' ') + "always @(posedge clk or posedge rst) begin\n";
+	std::vector<std::string> front, last;
+	for (auto *SG : graphs_) SG->readyForSearch();
+	for (auto *SG : graphs_) SG->writeInVerilog(front, last);
+	for (auto str : front) outstr += std::string(4, ' ') + str;
+	for (auto str : last) outstr += std::string(4, ' ') + str;
+	outstr += std::string(2, ' ') + "end\n";
+	outstr += "endmodule\n";
+
+	return outstr;
+}
+
 } // namespace cca
 } // namespace llvm

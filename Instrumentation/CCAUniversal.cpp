@@ -335,6 +335,7 @@ CCAUniversalPass::CCAUniversalPass(std::string patternStr) : patternStr_(pattern
 	// Verbose
 	outs() << "[PIM-CCA-PASS] Build Pattern Graph using \"" << patternStr << "\"\n";
 	G_->print(2, outs());
+	outs() << G_->writeInVerilog() << "\n";
 }
 
 // Pass Run
